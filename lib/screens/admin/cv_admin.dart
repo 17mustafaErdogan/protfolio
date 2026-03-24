@@ -19,7 +19,7 @@ class _CVAdminScreenState extends State<CVAdminScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -62,6 +62,8 @@ class _CVAdminScreenState extends State<CVAdminScreen> with SingleTickerProvider
               Tab(text: 'İş Deneyimi'),
               Tab(text: 'Diller'),
               Tab(text: 'Başarılar'),
+              Tab(text: 'Yayınlar'),
+              Tab(text: 'Referanslar'),
             ],
           ),
         ),
@@ -76,6 +78,8 @@ class _CVAdminScreenState extends State<CVAdminScreen> with SingleTickerProvider
               _WorkExperienceTab(),
               _LanguagesTab(),
               _AchievementsTab(),
+              _PublicationsTab(),
+              _ReferencesTab(),
             ],
           ),
         ),
@@ -152,7 +156,7 @@ class _EducationTabState extends State<_EducationTab> {
               };
               final ds = context.read<DataService>();
               final success = isEdit 
-                  ? await ds.updateEducation(item!['id'], data)
+                  ? await ds.updateEducation(item['id'], data)
                   : await ds.createEducation(data);
               if (success && mounted) { Navigator.pop(context); _load(); }
             },
@@ -261,7 +265,7 @@ class _CertificatesTabState extends State<_CertificatesTab> {
                   'credential_url': urlC.text.trim().isEmpty ? null : urlC.text.trim(),
                 };
                 final ds = context.read<DataService>();
-                final success = isEdit ? await ds.updateCertificate(item!['id'], data) : await ds.createCertificate(data);
+                final success = isEdit ? await ds.updateCertificate(item['id'], data) : await ds.createCertificate(data);
                 if (success && mounted) { Navigator.pop(context); _load(); }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
@@ -329,47 +333,239 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
     final descC = TextEditingController(text: item?['description'] ?? '');
     final locC = TextEditingController(text: item?['location'] ?? '');
 
+    DateTime? startDate = item != null
+        ? DateTime.tryParse(item['start_date'] ?? '')
+        : null;
+    DateTime? endDate = item != null
+        ? DateTime.tryParse(item['end_date'] ?? '')
+        : null;
+    bool isOngoing = endDate == null;
+
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: Text(isEdit ? 'Deneyim Düzenle' : 'Yeni Deneyim'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Pozisyon')),
-              const SizedBox(height: Spacing.md),
-              TextField(controller: companyC, decoration: const InputDecoration(labelText: 'Şirket')),
-              const SizedBox(height: Spacing.md),
-              TextField(controller: periodC, decoration: const InputDecoration(labelText: 'Dönem (2020-2022)')),
-              const SizedBox(height: Spacing.md),
-              TextField(controller: locC, decoration: const InputDecoration(labelText: 'Konum')),
-              const SizedBox(height: Spacing.md),
-              TextField(controller: descC, decoration: const InputDecoration(labelText: 'Açıklama'), maxLines: 3),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDs) => AlertDialog(
+          backgroundColor: AppTheme.surface,
+          title: Text(isEdit ? 'Deneyim Düzenle' : 'Yeni Deneyim'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                      controller: titleC,
+                      decoration:
+                          const InputDecoration(labelText: 'Pozisyon *')),
+                  const SizedBox(height: Spacing.md),
+                  TextField(
+                      controller: companyC,
+                      decoration:
+                          const InputDecoration(labelText: 'Şirket *')),
+                  const SizedBox(height: Spacing.md),
+                  TextField(
+                      controller: locC,
+                      decoration: const InputDecoration(labelText: 'Konum')),
+                  const SizedBox(height: Spacing.lg),
+
+                  // Tarih aralığı
+                  Text(
+                    'Tarih Aralığı',
+                    style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dateTile(
+                          ctx,
+                          label: 'Başlangıç',
+                          date: startDate,
+                          hint: 'Seç',
+                          onPick: () async {
+                            final p = await showDatePicker(
+                              context: ctx,
+                              initialDate: startDate ?? DateTime.now(),
+                              firstDate: DateTime(1980),
+                              lastDate: DateTime.now(),
+                            );
+                            if (p != null) setDs(() => startDate = p);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.md),
+                      Expanded(
+                        child: isOngoing
+                            ? Container(
+                                padding: const EdgeInsets.all(Spacing.md),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.background,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.border),
+                                ),
+                                child: Text(
+                                  'Devam Ediyor',
+                                  style: TextStyle(
+                                      color: AppTheme.accentGreen,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              )
+                            : _dateTile(
+                                ctx,
+                                label: 'Bitiş',
+                                date: endDate,
+                                hint: 'Seç',
+                                onPick: () async {
+                                  final p = await showDatePicker(
+                                    context: ctx,
+                                    initialDate:
+                                        endDate ?? DateTime.now(),
+                                    firstDate:
+                                        startDate ?? DateTime(1980),
+                                    lastDate: DateTime.now()
+                                        .add(const Duration(days: 365 * 5)),
+                                  );
+                                  if (p != null) setDs(() => endDate = p);
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  CheckboxListTile(
+                    dense: true,
+                    title: const Text('Devam Ediyor'),
+                    value: isOngoing,
+                    activeColor: AppTheme.accent,
+                    onChanged: (v) => setDs(() {
+                      isOngoing = v ?? true;
+                      if (isOngoing) endDate = null;
+                    }),
+                  ),
+                  const SizedBox(height: Spacing.md),
+
+                  // Görüntü için metin dönem (opsiyonel)
+                  TextField(
+                    controller: periodC,
+                    decoration: const InputDecoration(
+                      labelText: 'Görüntü Metni (opsiyonel)',
+                      hintText: 'Örn: 2020 - 2022 · Tam Zamanlı',
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  TextField(
+                      controller: descC,
+                      decoration:
+                          const InputDecoration(labelText: 'Açıklama'),
+                      maxLines: 3),
+                ],
+              ),
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal')),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleC.text.isEmpty || companyC.text.isEmpty) return;
+
+                // Otomatik period metni oluştur (boşsa)
+                String periodText = periodC.text.trim();
+                if (periodText.isEmpty && startDate != null) {
+                  final startStr =
+                      '${startDate!.year}/${startDate!.month.toString().padLeft(2, '0')}';
+                  final endStr = isOngoing
+                      ? 'devam ediyor'
+                      : endDate != null
+                          ? '${endDate!.year}/${endDate!.month.toString().padLeft(2, '0')}'
+                          : '';
+                  periodText = '$startStr → $endStr';
+                }
+
+                final data = {
+                  'title': titleC.text.trim(),
+                  'company': companyC.text.trim(),
+                  'period': periodText,
+                  'start_date': startDate
+                      ?.toIso8601String()
+                      .substring(0, 10),
+                  'end_date': isOngoing
+                      ? null
+                      : endDate?.toIso8601String().substring(0, 10),
+                  'location': locC.text.trim().isEmpty
+                      ? null
+                      : locC.text.trim(),
+                  'description': descC.text.trim().isEmpty
+                      ? null
+                      : descC.text.trim(),
+                };
+                final ds = context.read<DataService>();
+                final success = isEdit
+                    ? await ds.updateWorkExperience(item['id'], data)
+                    : await ds.createWorkExperience(data);
+                if (success && mounted) {
+                  Navigator.pop(ctx);
+                  _load();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accent,
+                  foregroundColor: AppTheme.background),
+              child: Text(isEdit ? 'Güncelle' : 'Ekle'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleC.text.isEmpty || companyC.text.isEmpty) return;
-              final data = {
-                'title': titleC.text.trim(),
-                'company': companyC.text.trim(),
-                'period': periodC.text.trim(),
-                'location': locC.text.trim().isEmpty ? null : locC.text.trim(),
-                'description': descC.text.trim().isEmpty ? null : descC.text.trim(),
-              };
-              final ds = context.read<DataService>();
-              final success = isEdit ? await ds.updateWorkExperience(item!['id'], data) : await ds.createWorkExperience(data);
-              if (success && mounted) { Navigator.pop(context); _load(); }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
-            child: Text(isEdit ? 'Güncelle' : 'Ekle'),
-          ),
-        ],
+      ),
+    );
+  }
+
+  Widget _dateTile(
+    BuildContext ctx, {
+    required String label,
+    required DateTime? date,
+    required String hint,
+    required VoidCallback onPick,
+  }) {
+    return InkWell(
+      onTap: onPick,
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: Theme.of(ctx)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: AppTheme.textMuted)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today,
+                    size: 14, color: AppTheme.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  date != null
+                      ? '${date.year}/${date.month.toString().padLeft(2, '0')}'
+                      : hint,
+                  style: TextStyle(
+                    color:
+                        date != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -384,14 +580,26 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
       onAdd: () => _showDialog(),
       itemBuilder: (item) => ListTile(
         title: Text('${item['title']} @ ${item['company']}'),
-        subtitle: Text(item['period'] ?? ''),
+        subtitle: Text(
+          item['start_date'] != null
+              ? '${item['start_date']} → ${item['end_date'] ?? 'devam ediyor'}'
+              : item['period'] ?? '',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: () => _showDialog(item)),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-              onPressed: () async { await context.read<DataService>().deleteWorkExperience(item['id']); _load(); },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                onPressed: () => _showDialog(item)),
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  size: 18, color: Colors.red),
+              onPressed: () async {
+                await context
+                    .read<DataService>()
+                    .deleteWorkExperience(item['id']);
+                _load();
+              },
             ),
           ],
         ),
@@ -456,7 +664,7 @@ class _LanguagesTabState extends State<_LanguagesTab> {
                 if (langC.text.isEmpty) return;
                 final data = {'language': langC.text.trim(), 'level': levelC.text.trim(), 'proficiency_percent': prof};
                 final ds = context.read<DataService>();
-                final success = isEdit ? await ds.updateLanguage(item!['id'], data) : await ds.createLanguage(data);
+                final success = isEdit ? await ds.updateLanguage(item['id'], data) : await ds.createLanguage(data);
                 if (success && mounted) { Navigator.pop(context); _load(); }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
@@ -550,7 +758,7 @@ class _AchievementsTabState extends State<_AchievementsTab> {
                 'organization': orgC.text.trim().isEmpty ? null : orgC.text.trim(),
               };
               final ds = context.read<DataService>();
-              final success = isEdit ? await ds.updateAchievement(item!['id'], data) : await ds.createAchievement(data);
+              final success = isEdit ? await ds.updateAchievement(item['id'], data) : await ds.createAchievement(data);
               if (success && mounted) { Navigator.pop(context); _load(); }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
@@ -579,6 +787,275 @@ class _AchievementsTabState extends State<_AchievementsTab> {
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
               onPressed: () async { await context.read<DataService>().deleteAchievement(item['id']); _load(); },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// REFERANSLAR TAB
+// ============================================================
+class _ReferencesTab extends StatefulWidget {
+  const _ReferencesTab();
+
+  @override
+  State<_ReferencesTab> createState() => _ReferencesTabState();
+}
+
+class _ReferencesTabState extends State<_ReferencesTab> {
+  List<Map<String, dynamic>> _items = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final data = await context.read<DataService>().getReferences();
+    if (mounted) setState(() {
+      _items = data;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _showDialog([Map<String, dynamic>? item]) async {
+    final isEdit = item != null;
+    final nameC = TextEditingController(text: item?['name'] ?? '');
+    final titleC = TextEditingController(text: item?['title'] ?? '');
+    final companyC = TextEditingController(text: item?['company'] ?? '');
+    final emailC = TextEditingController(text: item?['email'] ?? '');
+    final phoneC = TextEditingController(text: item?['phone'] ?? '');
+    final relationC = TextEditingController(text: item?['relationship'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Text(isEdit ? 'Referans Düzenle' : 'Yeni Referans'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Ad Soyad *')),
+              const SizedBox(height: Spacing.md),
+              TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Ünvan *')),
+              const SizedBox(height: Spacing.md),
+              TextField(controller: companyC, decoration: const InputDecoration(labelText: 'Şirket *')),
+              const SizedBox(height: Spacing.md),
+              TextField(controller: emailC, decoration: const InputDecoration(labelText: 'Email (opsiyonel)')),
+              const SizedBox(height: Spacing.md),
+              TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Telefon (opsiyonel)')),
+              const SizedBox(height: Spacing.md),
+              TextField(controller: relationC, decoration: const InputDecoration(labelText: 'İlişki (örn: Eski Yönetici)')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameC.text.isEmpty || titleC.text.isEmpty || companyC.text.isEmpty) return;
+              final data = {
+                'name': nameC.text.trim(),
+                'title': titleC.text.trim(),
+                'company': companyC.text.trim(),
+                'email': emailC.text.trim().isEmpty ? null : emailC.text.trim(),
+                'phone': phoneC.text.trim().isEmpty ? null : phoneC.text.trim(),
+                'relationship': relationC.text.trim().isEmpty ? null : relationC.text.trim(),
+              };
+              final ds = context.read<DataService>();
+              final success = isEdit
+                  ? await ds.updateReference(item!['id'], data)
+                  : await ds.createReference(data);
+              if (success && mounted) {
+                Navigator.pop(context);
+                _load();
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
+            child: Text(isEdit ? 'Güncelle' : 'Ekle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildListView(
+      isLoading: _isLoading,
+      items: _items,
+      emptyIcon: Icons.people_outline,
+      emptyText: 'Referans eklenmemiş',
+      onAdd: () => _showDialog(),
+      itemBuilder: (item) => ListTile(
+        title: Text('${item['name']} - ${item['title']}'),
+        subtitle: Text(item['company'] ?? ''),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: () => _showDialog(item)),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              onPressed: () async {
+                await context.read<DataService>().deleteReference(item['id']);
+                _load();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// YAYINLAR TAB
+// ============================================================
+class _PublicationsTab extends StatefulWidget {
+  const _PublicationsTab();
+
+  @override
+  State<_PublicationsTab> createState() => _PublicationsTabState();
+}
+
+class _PublicationsTabState extends State<_PublicationsTab> {
+  List<Map<String, dynamic>> _items = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final data = await context.read<DataService>().getPublications();
+    if (mounted) setState(() {
+      _items = data;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _showDialog([Map<String, dynamic>? item]) async {
+    final isEdit = item != null;
+    final titleC = TextEditingController(text: item?['title'] ?? '');
+    final venueC = TextEditingController(text: item?['venue'] ?? '');
+    final urlC = TextEditingController(text: item?['url'] ?? '');
+    final abstractC = TextEditingController(text: item?['abstract'] ?? '');
+    final coAuthorsC = TextEditingController(
+      text: item?['co_authors'] != null
+          ? (item!['co_authors'] as List).join(', ')
+          : '',
+    );
+    DateTime date = item?['date'] != null
+        ? DateTime.parse(item!['date'])
+        : DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppTheme.surface,
+          title: Text(isEdit ? 'Yayın Düzenle' : 'Yeni Yayın'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Başlık *')),
+                const SizedBox(height: Spacing.md),
+                TextField(controller: venueC, decoration: const InputDecoration(labelText: 'Yayın yeri (Dergi, Konferans) *')),
+                const SizedBox(height: Spacing.md),
+                ListTile(
+                  title: const Text('Tarih'),
+                  subtitle: Text('${date.day}/${date.month}/${date.year}'),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: date,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) setDialogState(() => date = picked);
+                  },
+                ),
+                TextField(controller: urlC, decoration: const InputDecoration(labelText: 'URL (opsiyonel)')),
+                const SizedBox(height: Spacing.md),
+                TextField(
+                  controller: coAuthorsC,
+                  decoration: const InputDecoration(labelText: 'Ortak yazarlar (virgülle ayırın)'),
+                ),
+                const SizedBox(height: Spacing.md),
+                TextField(
+                  controller: abstractC,
+                  decoration: const InputDecoration(labelText: 'Özet'),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleC.text.isEmpty || venueC.text.isEmpty) return;
+                final coAuthorsStr = coAuthorsC.text.trim();
+                final coAuthors = coAuthorsStr.isEmpty
+                    ? null
+                    : coAuthorsStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+                final data = {
+                  'title': titleC.text.trim(),
+                  'venue': venueC.text.trim(),
+                  'date': date.toIso8601String().substring(0, 10),
+                  'url': urlC.text.trim().isEmpty ? null : urlC.text.trim(),
+                  'co_authors': coAuthors,
+                  'abstract': abstractC.text.trim().isEmpty ? null : abstractC.text.trim(),
+                };
+                final ds = context.read<DataService>();
+                final success = isEdit
+                    ? await ds.updatePublication(item!['id'], data)
+                    : await ds.createPublication(data);
+                if (success && mounted) {
+                  Navigator.pop(context);
+                  _load();
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
+              child: Text(isEdit ? 'Güncelle' : 'Ekle'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildListView(
+      isLoading: _isLoading,
+      items: _items,
+      emptyIcon: Icons.article_outlined,
+      emptyText: 'Yayın eklenmemiş',
+      onAdd: () => _showDialog(),
+      itemBuilder: (item) => ListTile(
+        title: Text(item['title'] ?? ''),
+        subtitle: Text('${item['venue'] ?? ''} - ${item['date'] ?? ''}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: () => _showDialog(item)),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              onPressed: () async {
+                await context.read<DataService>().deletePublication(item['id']);
+                _load();
+              },
             ),
           ],
         ),

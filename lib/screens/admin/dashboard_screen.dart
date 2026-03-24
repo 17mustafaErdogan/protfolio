@@ -83,46 +83,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final isDesktop = Responsive.isDesktop(context);
-    final crossAxisCount = isDesktop ? 4 : 2;
+    final cards = [
+      _StatCard(
+        icon: Icons.folder_outlined,
+        label: 'Projeler',
+        value: '${_stats['projects'] ?? 0}',
+        color: AppTheme.accent,
+        onTap: () => context.go('/admin/projects'),
+      ),
+      _StatCard(
+        icon: Icons.psychology_outlined,
+        label: 'Beceriler',
+        value: '${_stats['skills'] ?? 0}',
+        color: AppTheme.accentGreen,
+        onTap: () => context.go('/admin/skills'),
+      ),
+      _StatCard(
+        icon: Icons.school_outlined,
+        label: 'Eğitim',
+        value: '${_stats['education'] ?? 0}',
+        color: AppTheme.accentOrange,
+        onTap: () => context.go('/admin/cv'),
+      ),
+      _StatCard(
+        icon: Icons.work_outline,
+        label: 'Deneyim',
+        value: '${_stats['workExperience'] ?? 0}',
+        color: AppTheme.software,
+        onTap: () => context.go('/admin/cv'),
+      ),
+    ];
 
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: crossAxisCount,
-      crossAxisSpacing: Spacing.lg,
-      mainAxisSpacing: Spacing.lg,
-      childAspectRatio: isDesktop ? 1.5 : 1.2,
-      children: [
-        _StatCard(
-          icon: Icons.folder_outlined,
-          label: 'Projeler',
-          value: '${_stats['projects'] ?? 0}',
-          color: AppTheme.accent,
-          onTap: () => context.go('/admin/projects'),
-        ),
-        _StatCard(
-          icon: Icons.psychology_outlined,
-          label: 'Beceriler',
-          value: '${_stats['skills'] ?? 0}',
-          color: AppTheme.accentGreen,
-          onTap: () => context.go('/admin/skills'),
-        ),
-        _StatCard(
-          icon: Icons.school_outlined,
-          label: 'Eğitim',
-          value: '${_stats['education'] ?? 0}',
-          color: AppTheme.accentOrange,
-          onTap: () => context.go('/admin/cv'),
-        ),
-        _StatCard(
-          icon: Icons.work_outline,
-          label: 'Deneyim',
-          value: '${_stats['workExperience'] ?? 0}',
-          color: AppTheme.software,
-          onTap: () => context.go('/admin/cv'),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = Responsive.isDesktop(context);
+        final columns = isDesktop ? 4 : 2;
+        final spacing = Spacing.lg;
+        final cardWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards
+              .map((c) => SizedBox(width: cardWidth, child: c))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -198,7 +205,7 @@ class _StatCardState extends State<_StatCard> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(Spacing.sm),
@@ -220,6 +227,7 @@ class _StatCardState extends State<_StatCard> {
                   color: widget.color,
                 ),
               ),
+              const SizedBox(height: Spacing.xs),
               Text(
                 widget.label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(

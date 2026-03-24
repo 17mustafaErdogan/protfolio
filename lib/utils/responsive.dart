@@ -108,6 +108,25 @@ class Responsive {
     if (width < Breakpoints.tablet) return 2;
     return 3;
   }
+
+  /// Bölümler arası dikey boşluğu ekran boyutuna göre ölçekler.
+  static double sectionPadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < Breakpoints.mobile) return 48;
+    if (width < Breakpoints.tablet) return 64;
+    return Spacing.sectionPadding;
+  }
+
+  /// Küçük ekranlarda başlık/body fontlarını kontrollü ölçeklemek için.
+  static double adaptiveFontSize(
+    BuildContext context, {
+    required double min,
+    required double max,
+  }) {
+    final width = MediaQuery.of(context).size.width;
+    final normalized = ((width - 320) / (1200 - 320)).clamp(0.0, 1.0);
+    return min + (max - min) * normalized;
+  }
 }
 
 /// Cihaz tipine göre farklı widget'lar oluşturmak için builder widget.

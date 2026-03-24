@@ -1,3 +1,9 @@
+# Environment variables (hassas bilgiler)
+.env
+
+# Supabase config (config.json.example'dan kopyalayıp doldurun)
+config.json
+
 # Miscellaneous
 *.class
 *.log

@@ -20,82 +20,97 @@ class NavBar extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final isMobile = Responsive.isMobile(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final isMobileMenu = screenWidth < 768 || (textScale > 1.1 && screenWidth < Breakpoints.desktop);
     
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.border,
-            width: 1,
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          border: Border(
+            bottom: BorderSide(
+              color: AppTheme.border,
+              width: 1,
+            ),
+          ),
+        ),
+        child: ContentContainer(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Logo / Site adı - tıklandığında ana sayfaya yönlendirir
+              InkWell(
+                onTap: () => context.go(AppRoutes.home),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.sm,
+                    vertical: Spacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      // Yeşil durum göstergesi
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentGreen,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.sm),
+                      Text(
+                        'portfolio',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Navigasyon bölümü - responsive
+              if (isMobileMenu)
+                _MobileMenuButton()
+              else
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      spacing: Spacing.lg,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: const [
+                        _NavLink(
+                          label: 'Projeler',
+                          path: AppRoutes.projects,
+                        ),
+                        _NavLink(
+                          label: 'Hakkımda',
+                          path: AppRoutes.about,
+                        ),
+                        _NavLink(
+                          label: 'Profil',
+                          path: AppRoutes.profile,
+                        ),
+                        _NavLink(
+                          label: 'İletişim',
+                          path: AppRoutes.contact,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
-      child: ContentContainer(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Logo / Site adı - tıklandığında ana sayfaya yönlendirir
-            InkWell(
-              onTap: () => context.go(AppRoutes.home),
-              borderRadius: BorderRadius.circular(4),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.sm,
-                  vertical: Spacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    // Yeşil durum göstergesi
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentGreen,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: Spacing.sm),
-                    Text(
-                      'portfolio',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Navigasyon bölümü - responsive
-            if (isMobile)
-              _MobileMenuButton()
-            else
-              Row(
-                children: [
-                  _NavLink(
-                    label: 'Projeler',
-                    path: AppRoutes.projects,
-                  ),
-                  const SizedBox(width: Spacing.lg),
-                  _NavLink(
-                    label: 'Hakkımda',
-                    path: AppRoutes.about,
-                  ),
-                  const SizedBox(width: Spacing.lg),
-                  _NavLink(
-                    label: 'İletişim',
-                    path: AppRoutes.contact,
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
+    ); 
   }
 }
 
@@ -167,6 +182,8 @@ class _MobileMenuButton extends StatelessWidget {
       onPressed: () {
         showModalBottomSheet(
           context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
           backgroundColor: AppTheme.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -188,48 +205,55 @@ class _MobileMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Sürükleme göstergesi (drag handle)
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.border,
-                  borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Sürükleme göstergesi (drag handle)
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: Spacing.lg),
-            
-            // Menü öğeleri
-            _MobileMenuItem(
-              label: 'Ana Sayfa',
-              icon: Icons.home_outlined,
-              path: AppRoutes.home,
-            ),
-            _MobileMenuItem(
-              label: 'Projeler',
-              icon: Icons.folder_outlined,
-              path: AppRoutes.projects,
-            ),
-            _MobileMenuItem(
-              label: 'Hakkımda',
-              icon: Icons.person_outline,
-              path: AppRoutes.about,
-            ),
-            _MobileMenuItem(
-              label: 'İletişim',
-              icon: Icons.mail_outline,
-              path: AppRoutes.contact,
-            ),
-            const SizedBox(height: Spacing.md),
-          ],
+              const SizedBox(height: Spacing.lg),
+              
+              // Menü öğeleri
+              _MobileMenuItem(
+                label: 'Ana Sayfa',
+                icon: Icons.home_outlined,
+                path: AppRoutes.home,
+              ),
+              _MobileMenuItem(
+                label: 'Projeler',
+                icon: Icons.folder_outlined,
+                path: AppRoutes.projects,
+              ),
+              _MobileMenuItem(
+                label: 'Hakkımda',
+                icon: Icons.person_outline,
+                path: AppRoutes.about,
+              ),
+              _MobileMenuItem(
+                label: 'Profil',
+                icon: Icons.badge_outlined,
+                path: AppRoutes.profile,
+              ),
+              _MobileMenuItem(
+                label: 'İletişim',
+                icon: Icons.mail_outline,
+                path: AppRoutes.contact,
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
+          ),
         ),
       ),
     );

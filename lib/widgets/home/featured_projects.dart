@@ -8,8 +8,9 @@ import '../../utils/responsive.dart';
 import '../common/section_title.dart';
 
 /// Öne çıkan projeler bölümü.
-/// 
+///
 /// Supabase'den featured=true olan projeleri yükler ve gösterir.
+/// Kategori rengi ve adı expertise_areas tablosundan dinamik olarak alınır.
 class FeaturedProjects extends StatefulWidget {
   const FeaturedProjects({super.key});
 
@@ -19,61 +20,54 @@ class FeaturedProjects extends StatefulWidget {
 
 class _FeaturedProjectsState extends State<FeaturedProjects> {
   List<Map<String, dynamic>> _projects = [];
+  List<Map<String, dynamic>> _expertiseAreas = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProjects();
+    _load();
   }
 
-  Future<void> _loadProjects() async {
-    final dataService = context.read<DataService>();
-    final projects = await dataService.getProjects(featured: true);
-    
+  Future<void> _load() async {
+    final ds = context.read<DataService>();
+    final results = await Future.wait([
+      ds.getProjects(featured: true),
+      ds.getExpertiseAreas(),
+    ]);
     if (mounted) {
       setState(() {
-        _projects = projects;
+        _projects = (results[0] as List).cast<Map<String, dynamic>>();
+        _expertiseAreas = (results[1] as List).cast<Map<String, dynamic>>();
         _isLoading = false;
       });
     }
   }
 
-  Color _getCategoryColor(String? category) {
-    switch (category) {
-      case 'electronics':
-        return AppTheme.electronics;
-      case 'mechanical':
-        return AppTheme.mechanical;
-      case 'software':
-        return AppTheme.software;
-      default:
-        return AppTheme.accent;
-    }
+  Map<String, dynamic>? _areaOf(Map<String, dynamic> project) {
+    final areaId = project['expertise_area_id'] as String?;
+    if (areaId == null) return null;
+    return _expertiseAreas.firstWhere(
+      (a) => a['id'] == areaId,
+      orElse: () => {},
+    );
   }
 
-  String _getCategoryName(String? category) {
-    switch (category) {
-      case 'electronics':
-        return 'Elektronik';
-      case 'mechanical':
-        return 'Mekanik';
-      case 'software':
-        return 'Yazılım';
-      default:
-        return 'Diğer';
+  Color _colorOf(Map<String, dynamic>? area) {
+    final hex = (area?['color'] as String?)?.replaceFirst('#', '') ?? '';
+    try {
+      return Color(0xFF000000 | int.parse(hex, radix: 16));
+    } catch (_) {
+      return AppTheme.accent;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final columns = Responsive.gridColumns(context);
-    
-    // Proje yoksa veya yükleniyorsa boş göster
-    if (_projects.isEmpty && !_isLoading) {
-      return const SizedBox.shrink();
-    }
-    
+
+    if (_projects.isEmpty && !_isLoading) return const SizedBox.shrink();
+
     return ContentContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,40 +83,40 @@ class _FeaturedProjectsState extends State<FeaturedProjects> {
                   Text(
                     'Tümünü Gör',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppTheme.accent,
-                    ),
+                          color: AppTheme.accent,
+                        ),
                   ),
                   const SizedBox(width: Spacing.xs),
-                  const Icon(
-                    Icons.arrow_forward,
-                    size: 16,
-                    color: AppTheme.accent,
-                  ),
+                  const Icon(Icons.arrow_forward, size: 16, color: AppTheme.accent),
                 ],
               ),
             ),
           ),
           const SizedBox(height: Spacing.xl),
-          
+
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else
-            // Projects Grid
             LayoutBuilder(
               builder: (context, constraints) {
                 final spacing = Spacing.lg;
-                final itemWidth = (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-                
+                final itemWidth = (constraints.maxWidth -
+                        (spacing * (columns - 1))) /
+                    columns;
                 return Wrap(
                   spacing: spacing,
                   runSpacing: spacing,
                   children: _projects.map((project) {
+                    final area = _areaOf(project);
+                    final color = _colorOf(area);
+                    final areaName = (area?['name'] as String?) ?? '';
                     return SizedBox(
                       width: columns == 1 ? constraints.maxWidth : itemWidth,
-                      child: _SupabaseProjectCard(
+                      child: _ProjectCard(
                         project: project,
-                        categoryColor: _getCategoryColor(project['category']),
-                        categoryName: _getCategoryName(project['category']),
+                        categoryColor: color,
+                        categoryName:
+                            areaName.isEmpty ? 'Proje' : areaName,
                       ),
                     );
                   }).toList(),
@@ -135,30 +129,29 @@ class _FeaturedProjectsState extends State<FeaturedProjects> {
   }
 }
 
-/// Supabase'den gelen proje verisi için kart widget'ı.
-class _SupabaseProjectCard extends StatefulWidget {
+class _ProjectCard extends StatefulWidget {
   final Map<String, dynamic> project;
   final Color categoryColor;
   final String categoryName;
 
-  const _SupabaseProjectCard({
+  const _ProjectCard({
     required this.project,
     required this.categoryColor,
     required this.categoryName,
   });
 
   @override
-  State<_SupabaseProjectCard> createState() => _SupabaseProjectCardState();
+  State<_ProjectCard> createState() => _ProjectCardState();
 }
 
-class _SupabaseProjectCardState extends State<_SupabaseProjectCard> {
+class _ProjectCardState extends State<_ProjectCard> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final project = widget.project;
     final tags = (project['tags'] as List?)?.take(3).toList() ?? [];
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -170,13 +163,15 @@ class _SupabaseProjectCardState extends State<_SupabaseProjectCard> {
             color: _isHovered ? AppTheme.surfaceLight : AppTheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _isHovered ? widget.categoryColor.withOpacity(0.3) : AppTheme.border,
+              color: _isHovered
+                  ? widget.categoryColor.withOpacity(0.3)
+                  : AppTheme.border,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail placeholder
+              // Thumbnail
               Container(
                 height: 180,
                 width: double.infinity,
@@ -197,35 +192,29 @@ class _SupabaseProjectCardState extends State<_SupabaseProjectCard> {
                           project['thumbnail_url'],
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Center(
-                            child: Icon(
-                              Icons.folder_outlined,
-                              size: 48,
-                              color: widget.categoryColor.withOpacity(0.5),
-                            ),
+                            child: Icon(Icons.folder_outlined,
+                                size: 48,
+                                color: widget.categoryColor.withOpacity(0.5)),
                           ),
                         ),
                       )
                     : Center(
-                        child: Icon(
-                          Icons.folder_outlined,
-                          size: 48,
-                          color: widget.categoryColor.withOpacity(0.5),
-                        ),
+                        child: Icon(Icons.folder_outlined,
+                            size: 48,
+                            color: widget.categoryColor.withOpacity(0.5)),
                       ),
               ),
-              
-              // Content
+
+              // İçerik
               Padding(
                 padding: const EdgeInsets.all(Spacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category chip
+                    // Kategori chip
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.sm,
-                        vertical: 2,
-                      ),
+                          horizontal: Spacing.sm, vertical: 2),
                       decoration: BoxDecoration(
                         color: widget.categoryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -233,55 +222,58 @@ class _SupabaseProjectCardState extends State<_SupabaseProjectCard> {
                       child: Text(
                         widget.categoryName,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: widget.categoryColor,
-                        ),
+                              color: widget.categoryColor,
+                            ),
                       ),
                     ),
                     const SizedBox(height: Spacing.md),
-                    
-                    // Title
+
+                    // Başlık
                     Text(
                       project['title'] ?? 'Başlıksız',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: Spacing.xs),
-                    
-                    // Subtitle
+
+                    // Alt başlık
                     Text(
                       project['subtitle'] ?? '',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+                            color: AppTheme.textSecondary,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: Spacing.md),
-                    
-                    // Tags
+
+                    // Etiketler
                     if (tags.isNotEmpty)
                       Wrap(
                         spacing: Spacing.xs,
-                        children: tags.map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Spacing.xs,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.background,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: AppTheme.border),
-                          ),
-                          child: Text(
-                            tag.toString(),
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppTheme.textMuted,
-                            ),
-                          ),
-                        )).toList(),
+                        children: tags
+                            .map((tag) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: Spacing.xs, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.background,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border:
+                                        Border.all(color: AppTheme.border),
+                                  ),
+                                  child: Text(
+                                    tag.toString(),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(color: AppTheme.textMuted),
+                                  ),
+                                ))
+                            .toList(),
                       ),
                   ],
                 ),

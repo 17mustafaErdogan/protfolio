@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../services/data_service.dart';
+import '../utils/open_url.dart';
 import '../utils/responsive.dart';
 import '../widgets/common/section_title.dart';
 
@@ -18,6 +21,7 @@ class ContactScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
+    final sectionPadding = Responsive.sectionPadding(context);
     
     return Padding(
       padding: EdgeInsets.symmetric(vertical: Spacing.xxl),
@@ -57,7 +61,7 @@ class ContactScreen extends StatelessWidget {
                 ],
               ),
             
-            SizedBox(height: Spacing.sectionPadding),
+            SizedBox(height: sectionPadding),
           ],
         ),
       ),
@@ -66,12 +70,59 @@ class ContactScreen extends StatelessWidget {
 }
 
 /// İletişim bilgileri bölümü.
-/// 
+///
 /// İçerir:
 /// - Başlık ve açıklama
-/// - Email, GitHub, LinkedIn linkleri
+/// - Email, GitHub, LinkedIn linkleri ([personal_info] ile doldurulur)
 /// - Müsaitlik durumu göstergesi
-class _ContactInfo extends StatelessWidget {
+class _ContactInfo extends StatefulWidget {
+  @override
+  State<_ContactInfo> createState() => _ContactInfoState();
+}
+
+class _ContactInfoState extends State<_ContactInfo> {
+  String _emailDisplay = 'contact@example.com';
+  String _emailUrl = 'mailto:contact@example.com';
+  String _githubDisplay = 'github.com/username';
+  String _githubUrl = 'https://github.com/username';
+  String _linkedinDisplay = 'linkedin.com/in/username';
+  String _linkedinUrl = 'https://www.linkedin.com/in/username';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPersonalInfo());
+  }
+
+  Future<void> _loadPersonalInfo() async {
+    if (!mounted) return;
+    final ds = context.read<DataService>();
+    final p = await ds.getPersonalInfo();
+    if (!mounted) return;
+    setState(() {
+      final em = p?['email']?.toString().trim();
+      if (em != null && em.isNotEmpty) {
+        _emailDisplay = em.replaceFirst(RegExp(r'^mailto:', caseSensitive: false), '');
+        _emailUrl = em.toLowerCase().startsWith('mailto:') ? em : 'mailto:$em';
+      }
+      final gh = p?['github_url']?.toString().trim();
+      if (gh != null && gh.isNotEmpty) {
+        _githubUrl = gh.contains('://') ? gh : 'https://$gh';
+        _githubDisplay = _stripSchemeForDisplay(_githubUrl);
+      }
+      final li = p?['linkedin_url']?.toString().trim();
+      if (li != null && li.isNotEmpty) {
+        _linkedinUrl = li.contains('://') ? li : 'https://$li';
+        _linkedinDisplay = _stripSchemeForDisplay(_linkedinUrl);
+      }
+    });
+  }
+
+  /// Gösterim için `https://` önekini kaldırır.
+  static String _stripSchemeForDisplay(String url) {
+    return url.replaceFirst(RegExp(r'^https?://', caseSensitive: false), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -83,7 +134,7 @@ class _ContactInfo extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: Spacing.md),
-        
+
         // Açıklama
         Text(
           'Proje fikirleri, iş birliği önerileri veya sadece merhaba '
@@ -91,26 +142,29 @@ class _ContactInfo extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: Spacing.xl),
-        
+
         // İletişim kanalları
         _ContactItem(
           icon: Icons.mail_outline,
           label: 'Email',
-          value: 'contact@example.com',
+          value: _emailDisplay,
+          url: _emailUrl,
           color: AppTheme.accent,
         ),
         const SizedBox(height: Spacing.md),
         _ContactItem(
           icon: Icons.code,
           label: 'GitHub',
-          value: 'github.com/username',
+          value: _githubDisplay,
+          url: _githubUrl,
           color: AppTheme.textPrimary,
         ),
         const SizedBox(height: Spacing.md),
         _ContactItem(
           icon: Icons.work_outline,
           label: 'LinkedIn',
-          value: 'linkedin.com/in/username',
+          value: _linkedinDisplay,
+          url: _linkedinUrl,
           color: AppTheme.electronics,
         ),
         
@@ -166,6 +220,9 @@ class _ContactItem extends StatefulWidget {
   
   /// Alttaki değer (örn: "contact@example.com")
   final String value;
+
+  /// Tıklanınca açılacak tam URL (mailto: veya https://)
+  final String url;
   
   /// Tema rengi
   final Color color;
@@ -174,6 +231,7 @@ class _ContactItem extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.url,
     required this.color,
   });
   
@@ -189,16 +247,21 @@ class _ContactItemState extends State<_ContactItem> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          color: _isHovered ? AppTheme.surface : Colors.transparent,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => openExternalUrl(context, widget.url),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isHovered ? AppTheme.border : Colors.transparent,
-          ),
-        ),
-        child: Row(
+          child: Container(
+            padding: const EdgeInsets.all(Spacing.md),
+            decoration: BoxDecoration(
+              color: _isHovered ? AppTheme.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _isHovered ? AppTheme.border : Colors.transparent,
+              ),
+            ),
+            child: Row(
           children: [
             // İkon container
             Container(
@@ -245,6 +308,8 @@ class _ContactItemState extends State<_ContactItem> {
                 color: widget.color,
               ),
           ],
+            ),
+          ),
         ),
       ),
     );

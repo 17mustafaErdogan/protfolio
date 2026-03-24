@@ -111,6 +111,12 @@ class _AdminSidebar extends StatelessWidget {
                   isSelected: currentPath == '/admin/skills',
                 ),
                 _NavItem(
+                  icon: Icons.star_outline,
+                  label: 'Uzmanlık Alanları',
+                  path: '/admin/expertise-areas',
+                  isSelected: currentPath == '/admin/expertise-areas',
+                ),
+                _NavItem(
                   icon: Icons.description_outlined,
                   label: 'CV Bilgileri',
                   path: '/admin/cv',

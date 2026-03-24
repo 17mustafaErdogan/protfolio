@@ -14,6 +14,7 @@ class SettingsAdminScreen extends StatefulWidget {
 class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
   final _formKey = GlobalKey<FormState>();
   
+  // Kişisel Bilgiler
   final _nameController = TextEditingController();
   final _titleController = TextEditingController();
   final _bioController = TextEditingController();
@@ -24,6 +25,16 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
   final _linkedinController = TextEditingController();
   final _twitterController = TextEditingController();
   final _websiteController = TextEditingController();
+  
+  // Kişisel durum
+  final _militaryStatusController = TextEditingController();
+  final _driverLicenseController = TextEditingController();
+
+  // Hakkımda İçerikleri
+  final _storyController = TextEditingController();
+  final _visionController = TextEditingController();
+  final _approachController = TextEditingController();
+  final _whyMeController = TextEditingController();
   
   // Stats
   final _projectCountController = TextEditingController();
@@ -51,6 +62,12 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
     _linkedinController.dispose();
     _twitterController.dispose();
     _websiteController.dispose();
+    _militaryStatusController.dispose();
+    _driverLicenseController.dispose();
+    _storyController.dispose();
+    _visionController.dispose();
+    _approachController.dispose();
+    _whyMeController.dispose();
     _projectCountController.dispose();
     _yearsExpController.dispose();
     _expertiseController.dispose();
@@ -76,6 +93,15 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
           _linkedinController.text = personalInfo['linkedin_url'] ?? '';
           _twitterController.text = personalInfo['twitter_url'] ?? '';
           _websiteController.text = personalInfo['website_url'] ?? '';
+          
+          _militaryStatusController.text = personalInfo['military_status'] ?? '';
+          _driverLicenseController.text = personalInfo['driver_license'] ?? '';
+
+          // Hakkımda içerikleri
+          _storyController.text = personalInfo['story'] ?? '';
+          _visionController.text = personalInfo['vision'] ?? '';
+          _approachController.text = personalInfo['approach'] ?? '';
+          _whyMeController.text = personalInfo['why_me'] ?? '';
         }
         
         if (stats != null) {
@@ -108,6 +134,13 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
       'linkedin_url': _linkedinController.text.trim().isEmpty ? null : _linkedinController.text.trim(),
       'twitter_url': _twitterController.text.trim().isEmpty ? null : _twitterController.text.trim(),
       'website_url': _websiteController.text.trim().isEmpty ? null : _websiteController.text.trim(),
+      'military_status': _militaryStatusController.text.trim().isEmpty ? null : _militaryStatusController.text.trim(),
+      'driver_license': _driverLicenseController.text.trim().isEmpty ? null : _driverLicenseController.text.trim(),
+      // Hakkımda içerikleri
+      'story': _storyController.text.trim().isEmpty ? null : _storyController.text.trim(),
+      'vision': _visionController.text.trim().isEmpty ? null : _visionController.text.trim(),
+      'approach': _approachController.text.trim().isEmpty ? null : _approachController.text.trim(),
+      'why_me': _whyMeController.text.trim().isEmpty ? null : _whyMeController.text.trim(),
     });
     
     // Stats
@@ -185,6 +218,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
               _buildTextField(
                 controller: _bioController,
                 label: 'Kısa Biyografi',
+                hint: 'Ana sayfada görünecek kısa tanıtım',
                 maxLines: 3,
               ),
               const SizedBox(height: Spacing.lg),
@@ -192,6 +226,43 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
                 controller: _detailedBioController,
                 label: 'Detaylı Biyografi',
                 maxLines: 4,
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildMilitaryStatusField(),
+              const SizedBox(height: Spacing.lg),
+              _buildDriverLicenseField(),
+            ]),
+            
+            const SizedBox(height: Spacing.xxl),
+            
+            // Hakkımda İçerikleri
+            _buildSection('Hakkımda Sayfası İçerikleri', [
+              _buildTextField(
+                controller: _storyController,
+                label: 'Hikayem',
+                hint: 'Kim olduğunuz, nasıl başladığınız, yolculuğunuz...',
+                maxLines: 6,
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildTextField(
+                controller: _visionController,
+                label: 'Vizyonum',
+                hint: 'Neye inanıyorsunuz, hedefleriniz, değerleriniz...',
+                maxLines: 6,
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildTextField(
+                controller: _approachController,
+                label: 'Problem Çözme Yaklaşımım',
+                hint: 'Nasıl düşünüyorsunuz, metodolojiniz, yaklaşımınız...',
+                maxLines: 6,
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildTextField(
+                controller: _whyMeController,
+                label: 'Neden Benimle Çalışmalısınız?',
+                hint: 'Değer önerileriniz, farklılıklarınız, avantajlarınız...',
+                maxLines: 6,
               ),
             ]),
             
@@ -245,32 +316,44 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
             
             // İstatistikler
             _buildSection('İstatistikler (Ana Sayfada Gösterilir)', [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _projectCountController,
-                      label: 'Proje Sayısı',
-                      hint: '15+',
-                    ),
-                  ),
-                  const SizedBox(width: Spacing.lg),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _yearsExpController,
-                      label: 'Yıl Deneyim',
-                      hint: '5+',
-                    ),
-                  ),
-                  const SizedBox(width: Spacing.lg),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _expertiseController,
-                      label: 'Uzmanlık Alanı',
-                      hint: '3',
-                    ),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < Breakpoints.desktop;
+                  final fieldWidth = isNarrow
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - (Spacing.lg * 2)) / 3;
+
+                  return Wrap(
+                    spacing: Spacing.lg,
+                    runSpacing: Spacing.lg,
+                    children: [
+                      SizedBox(
+                        width: fieldWidth,
+                        child: _buildTextField(
+                          controller: _projectCountController,
+                          label: 'Proje Sayısı',
+                          hint: '15+',
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: _buildTextField(
+                          controller: _yearsExpController,
+                          label: 'Yıl Deneyim',
+                          hint: '5+',
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: _buildTextField(
+                          controller: _expertiseController,
+                          label: 'Uzmanlık Alanı',
+                          hint: '3',
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ]),
             
@@ -304,6 +387,125 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMilitaryStatusField() {
+    const options = [
+      'Tamamlandı',
+      'Muaf',
+      'Ertelemeli',
+      'Yükümlü',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Askerlik Durumu',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+        ),
+        const SizedBox(height: Spacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _militaryStatusController,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Tamamlandı / Muaf / Ertelemeli...',
+                  hintStyle: const TextStyle(color: AppTheme.textMuted),
+                  filled: true,
+                  fillColor: AppTheme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: AppTheme.accent, width: 2),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: Spacing.sm),
+            PopupMenuButton<String>(
+              tooltip: 'Hızlı seç',
+              color: AppTheme.surface,
+              icon: const Icon(Icons.arrow_drop_down,
+                  color: AppTheme.textSecondary),
+              onSelected: (v) =>
+                  setState(() => _militaryStatusController.text = v),
+              itemBuilder: (_) => options
+                  .map((o) => PopupMenuItem(value: o, child: Text(o)))
+                  .toList(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDriverLicenseField() {
+    const options = ['A1', 'A2', 'B', 'B1', 'C', 'D', 'Yok'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ehliyet Durumu',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+        ),
+        const SizedBox(height: Spacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _driverLicenseController,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'B / A1 / Yok...',
+                  hintStyle: const TextStyle(color: AppTheme.textMuted),
+                  filled: true,
+                  fillColor: AppTheme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: AppTheme.accent, width: 2),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: Spacing.sm),
+            PopupMenuButton<String>(
+              tooltip: 'Hızlı seç',
+              color: AppTheme.surface,
+              icon: const Icon(Icons.arrow_drop_down,
+                  color: AppTheme.textSecondary),
+              onSelected: (v) =>
+                  setState(() => _driverLicenseController.text = v),
+              itemBuilder: (_) => options
+                  .map((o) => PopupMenuItem(value: o, child: Text(o)))
+                  .toList(),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

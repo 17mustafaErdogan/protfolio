@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
+import '../../services/data_service.dart';
+import '../../utils/open_url.dart';
 import '../../utils/responsive.dart';
 
 /// Sayfa altında bulunan footer bileşeni.
@@ -14,9 +17,47 @@ import '../../utils/responsive.dart';
 /// admin giriş sayfasına (/login) yönlendirir.
 /// 
 /// Tüm sayfalarda [ShellScaffold] aracılığıyla gösterilir.
-class Footer extends StatelessWidget {
+///
+/// Linkler [personal_info] (GitHub, LinkedIn, email) ile doldurulur.
+class Footer extends StatefulWidget {
   const Footer({super.key});
-  
+
+  @override
+  State<Footer> createState() => _FooterState();
+}
+
+class _FooterState extends State<Footer> {
+  String _githubUrl = 'https://github.com';
+  String _linkedinUrl = 'https://www.linkedin.com';
+  String _emailUrl = 'mailto:contact@example.com';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLinks());
+  }
+
+  Future<void> _loadLinks() async {
+    if (!mounted) return;
+    final ds = context.read<DataService>();
+    final p = await ds.getPersonalInfo();
+    if (!mounted) return;
+    setState(() {
+      final gh = p?['github_url']?.toString().trim();
+      if (gh != null && gh.isNotEmpty) {
+        _githubUrl = gh.contains('://') ? gh : 'https://$gh';
+      }
+      final li = p?['linkedin_url']?.toString().trim();
+      if (li != null && li.isNotEmpty) {
+        _linkedinUrl = li.contains('://') ? li : 'https://$li';
+      }
+      final em = p?['email']?.toString().trim();
+      if (em != null && em.isNotEmpty) {
+        _emailUrl = em.toLowerCase().startsWith('mailto:') ? em : 'mailto:$em';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -43,19 +84,19 @@ class Footer extends StatelessWidget {
                 _SocialLink(
                   icon: Icons.code,
                   label: 'GitHub',
-                  url: 'https://github.com',
+                  url: _githubUrl,
                 ),
                 const SizedBox(width: Spacing.lg),
                 _SocialLink(
                   icon: Icons.work_outline,
                   label: 'LinkedIn',
-                  url: 'https://linkedin.com',
+                  url: _linkedinUrl,
                 ),
                 const SizedBox(width: Spacing.lg),
                 _SocialLink(
                   icon: Icons.mail_outline,
                   label: 'Email',
-                  url: 'mailto:contact@example.com',
+                  url: _emailUrl,
                 ),
               ],
             ),
@@ -214,10 +255,7 @@ class _SocialLinkState extends State<_SocialLink> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: InkWell(
-        onTap: () {
-          // URL launcher entegrasyonu buraya eklenebilir
-          // launchUrl(Uri.parse(widget.url));
-        },
+        onTap: () => openExternalUrl(context, widget.url),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(

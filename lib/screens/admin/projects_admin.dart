@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../services/data_service.dart';
-import '../../utils/responsive.dart';
-
 /// Proje yönetimi ekranı.
 /// 
 /// Projeleri listeler ve CRUD işlemleri sağlar.
@@ -17,21 +15,25 @@ class ProjectsAdminScreen extends StatefulWidget {
 
 class _ProjectsAdminScreenState extends State<ProjectsAdminScreen> {
   List<Map<String, dynamic>> _projects = [];
+  List<Map<String, dynamic>> _expertiseAreas = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProjects();
+    _load();
   }
 
-  Future<void> _loadProjects() async {
-    final dataService = context.read<DataService>();
-    final projects = await dataService.getProjects();
-    
+  Future<void> _load() async {
+    final ds = context.read<DataService>();
+    final results = await Future.wait([
+      ds.getProjects(),
+      ds.getExpertiseAreas(),
+    ]);
     if (mounted) {
       setState(() {
-        _projects = projects;
+        _projects = (results[0] as List).cast<Map<String, dynamic>>();
+        _expertiseAreas = (results[1] as List).cast<Map<String, dynamic>>();
         _isLoading = false;
       });
     }
@@ -71,7 +73,7 @@ class _ProjectsAdminScreenState extends State<ProjectsAdminScreen> {
             backgroundColor: AppTheme.accentGreen,
           ),
         );
-        _loadProjects();
+        _load();
       }
     }
   }
@@ -174,6 +176,7 @@ class _ProjectsAdminScreenState extends State<ProjectsAdminScreen> {
         final project = _projects[index];
         return _ProjectListItem(
           project: project,
+          expertiseAreas: _expertiseAreas,
           onEdit: () => context.go('/admin/projects/${project['id']}/edit'),
           onDelete: () => _deleteProject(project['id'], project['title']),
         );
@@ -185,11 +188,13 @@ class _ProjectsAdminScreenState extends State<ProjectsAdminScreen> {
 /// Proje listesi öğesi.
 class _ProjectListItem extends StatefulWidget {
   final Map<String, dynamic> project;
+  final List<Map<String, dynamic>> expertiseAreas;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _ProjectListItem({
     required this.project,
+    required this.expertiseAreas,
     required this.onEdit,
     required this.onDelete,
   });
@@ -201,35 +206,38 @@ class _ProjectListItem extends StatefulWidget {
 class _ProjectListItemState extends State<_ProjectListItem> {
   bool _isHovered = false;
 
-  Color _getCategoryColor(String? category) {
-    switch (category) {
-      case 'electronics':
-        return AppTheme.electronics;
-      case 'mechanical':
-        return AppTheme.mechanical;
-      case 'software':
-        return AppTheme.software;
-      default:
-        return AppTheme.accent;
+  Map<String, dynamic>? get _area {
+    final areaId = widget.project['expertise_area_id'] as String?;
+    if (areaId == null) return null;
+    return widget.expertiseAreas.firstWhere(
+      (a) => a['id'] == areaId,
+      orElse: () => {},
+    );
+  }
+
+  Color get _areaColor {
+    final hex = (_area?['color'] as String?)?.replaceFirst('#', '') ?? '';
+    try {
+      return Color(0xFF000000 | int.parse(hex, radix: 16));
+    } catch (_) {
+      return AppTheme.accent;
     }
   }
 
-  String _getCategoryName(String? category) {
-    switch (category) {
-      case 'electronics':
-        return 'Elektronik';
-      case 'mechanical':
-        return 'Mekanik';
-      case 'software':
-        return 'Yazılım';
-      default:
-        return 'Diğer';
-    }
+  String get _areaName => (_area?['name'] as String?) ?? '';
+
+  String _projectDateRange(Map<String, dynamic> p) {
+    final start = p['start_date'] as String? ?? p['date'] as String?;
+    final end = p['end_date'] as String?;
+    if (start == null) return '';
+    final s = start.substring(0, 7); // yyyy-MM
+    if (end == null) return '$s – Devam';
+    return '$s – ${end.substring(0, 7)}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _getCategoryColor(widget.project['category']);
+    final color = _areaColor;
     
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -311,16 +319,16 @@ class _ProjectListItemState extends State<_ProjectListItem> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          _getCategoryName(widget.project['category']),
+                          _areaName.isEmpty ? 'Kategorisiz' : _areaName,
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: color,
+                            color: _areaName.isEmpty ? AppTheme.textMuted : color,
                           ),
                         ),
                       ),
                       const SizedBox(width: Spacing.md),
-                      if (widget.project['date'] != null)
+                      if (widget.project['start_date'] != null || widget.project['date'] != null)
                         Text(
-                          widget.project['date'].toString().substring(0, 10),
+                          _projectDateRange(widget.project),
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AppTheme.textMuted,
                           ),

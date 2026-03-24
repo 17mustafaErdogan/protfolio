@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/cv_models.dart';
 
 /// Supabase veritabani islemleri servisi.
 /// 
@@ -32,6 +33,7 @@ class DataService extends ChangeNotifier {
       final response = await _supabase
           .from('personal_info')
           .select()
+          .order('updated_at', ascending: false)
           .limit(1)
           .maybeSingle();
       return response;
@@ -234,6 +236,11 @@ class DataService extends ChangeNotifier {
     }
   }
 
+  Future<List<Education>> getEducationItems() async {
+    final rows = await getEducation();
+    return rows.map(Education.fromMap).toList(growable: false);
+  }
+
   Future<bool> createEducation(Map<String, dynamic> data) async {
     try {
       await _supabase.from('education').insert(data);
@@ -285,6 +292,11 @@ class DataService extends ChangeNotifier {
       debugPrint('Error getting certificates: $e');
       return [];
     }
+  }
+
+  Future<List<Certificate>> getCertificateItems() async {
+    final rows = await getCertificates();
+    return rows.map(Certificate.fromMap).toList(growable: false);
   }
 
   Future<bool> createCertificate(Map<String, dynamic> data) async {
@@ -340,6 +352,11 @@ class DataService extends ChangeNotifier {
     }
   }
 
+  Future<List<WorkExperience>> getWorkExperienceItems() async {
+    final rows = await getWorkExperience();
+    return rows.map(WorkExperience.fromMap).toList(growable: false);
+  }
+
   Future<bool> createWorkExperience(Map<String, dynamic> data) async {
     try {
       await _supabase.from('work_experience').insert(data);
@@ -391,6 +408,11 @@ class DataService extends ChangeNotifier {
       debugPrint('Error getting languages: $e');
       return [];
     }
+  }
+
+  Future<List<LanguageSkill>> getLanguageItems() async {
+    final rows = await getLanguages();
+    return rows.map(LanguageSkill.fromMap).toList(growable: false);
   }
 
   Future<bool> createLanguage(Map<String, dynamic> data) async {
@@ -446,6 +468,11 @@ class DataService extends ChangeNotifier {
     }
   }
 
+  Future<List<Achievement>> getAchievementItems() async {
+    final rows = await getAchievements();
+    return rows.map(Achievement.fromMap).toList(growable: false);
+  }
+
   Future<bool> createAchievement(Map<String, dynamic> data) async {
     try {
       await _supabase.from('achievements').insert(data);
@@ -483,6 +510,64 @@ class DataService extends ChangeNotifier {
   }
 
   // ============================================================
+  // REFERENCES (user_references)
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> getReferences() async {
+    try {
+      final response = await _supabase
+          .from('user_references')
+          .select()
+          .order('order_index');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error getting references: $e');
+      return [];
+    }
+  }
+
+  Future<List<Reference>> getReferenceItems() async {
+    final rows = await getReferences();
+    return rows.map(Reference.fromMap).toList(growable: false);
+  }
+
+  Future<bool> createReference(Map<String, dynamic> data) async {
+    try {
+      await _supabase.from('user_references').insert(data);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Referans oluşturulamadı: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateReference(String id, Map<String, dynamic> data) async {
+    try {
+      await _supabase.from('user_references').update(data).eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Referans güncellenemedi: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteReference(String id) async {
+    try {
+      await _supabase.from('user_references').delete().eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Referans silinemedi: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ============================================================
   // PUBLICATIONS
   // ============================================================
 
@@ -497,6 +582,11 @@ class DataService extends ChangeNotifier {
       debugPrint('Error getting publications: $e');
       return [];
     }
+  }
+
+  Future<List<Publication>> getPublicationItems() async {
+    final rows = await getPublications();
+    return rows.map(Publication.fromMap).toList(growable: false);
   }
 
   Future<bool> createPublication(Map<String, dynamic> data) async {
@@ -542,7 +632,7 @@ class DataService extends ChangeNotifier {
   Future<Map<String, dynamic>?> getStats() async {
     try {
       final response = await _supabase
-          .from('stats')
+          .from('stats') // stats tablosu görevi: proje sayısı, deneyim yılı, uzmanlık alanları
           .select()
           .limit(1)
           .maybeSingle();
@@ -567,6 +657,194 @@ class DataService extends ChangeNotifier {
       _errorMessage = 'İstatistikler güncellenemedi: $e';
       notifyListeners();
       return false;
+    }
+  }
+
+  // ============================================================
+  // EXPERTISE AREAS
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> getExpertiseAreas() async {
+    try {
+      final response = await _supabase
+          .from('expertise_areas')
+          .select()
+          .order('order_index');
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      debugPrint('Error getting expertise areas: $e');
+      return [];
+    }
+  }
+
+  Future<bool> createExpertiseArea(Map<String, dynamic> data) async {
+    try {
+      await _supabase.from('expertise_areas').insert(data);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Uzmanlık alanı eklenemedi: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateExpertiseArea(String id, Map<String, dynamic> data) async {
+    try {
+      await _supabase.from('expertise_areas').update(data).eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Uzmanlık alanı güncellenemedi: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteExpertiseArea(String id) async {
+    try {
+      await _supabase.from('expertise_areas').delete().eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Uzmanlık alanı silinemedi: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Her uzmanlık alanı için deneyim yılını hesaplar.
+  ///
+  /// Hesap öncelik sırası:
+  /// 1. `linked_work_exp_ids` doluysa: bağlı iş deneyimlerinin (start→end) aralıklarından toplam ay hesaplanır
+  /// 2. Aksi halde: expertise_area'nın kendi start_date → end_date (null = bugün) aralığı kullanılır
+  /// 3. `parent_ids` doluysa: parent alanların en erken start_date'i baz alınır
+  int _calculateYears(
+    Map<String, dynamic> area,
+    List<Map<String, dynamic>> allAreas, {
+    List<Map<String, dynamic>> workExps = const [],
+  }) {
+    final now = DateTime.now();
+
+    // 1. İş deneyimlerinden toplam ay hesapla
+    final linkedWeIds =
+        (area['linked_work_exp_ids'] as List?)?.cast<String>() ?? [];
+    if (linkedWeIds.isNotEmpty && workExps.isNotEmpty) {
+      final linkedExps =
+          workExps.where((w) => linkedWeIds.contains(w['id'])).toList();
+      final totalMonths = _sumDateRangeMonths(linkedExps, now);
+      if (totalMonths > 0) return (totalMonths / 12).round().clamp(1, 99);
+    }
+
+    // 2. Expertise area kendi tarih aralığı
+    final startDate = DateTime.tryParse(area['start_date'] ?? '');
+    if (startDate != null) {
+      final endDate = DateTime.tryParse(area['end_date'] ?? '') ?? now;
+      final months = _monthsBetween(startDate, endDate);
+      if (months > 0) return (months / 12).round().clamp(1, 99);
+    }
+
+    // 3. Parent alanları varsa en erken tarihi kullan
+    final parentIds = (area['parent_ids'] as List?)?.cast<String>() ?? [];
+    if (parentIds.isNotEmpty) {
+      final parents =
+          allAreas.where((a) => parentIds.contains(a['id'])).toList();
+      DateTime? earliest;
+      for (final p in parents) {
+        final d = DateTime.tryParse(p['start_date'] ?? '');
+        if (d != null && (earliest == null || d.isBefore(earliest))) {
+          earliest = d;
+        }
+      }
+      if (earliest != null) {
+        final months = _monthsBetween(earliest, now);
+        return (months / 12).round().clamp(1, 99);
+      }
+    }
+
+    return 0;
+  }
+
+  /// Ay sayısı hesaplayıcı
+  int _monthsBetween(DateTime start, DateTime end) {
+    final months = (end.year - start.year) * 12 + (end.month - start.month);
+    return months.clamp(0, 999);
+  }
+
+  /// Birden fazla iş deneyimi aralığını birleştirip toplam ay sayısını döndürür.
+  /// Örtüşen aralıklar tek sayılır.
+  int _sumDateRangeMonths(
+      List<Map<String, dynamic>> exps, DateTime now) {
+    final ranges = <(DateTime, DateTime)>[];
+    for (final exp in exps) {
+      final start = DateTime.tryParse(exp['start_date'] ?? '');
+      if (start == null) continue;
+      final end = DateTime.tryParse(exp['end_date'] ?? '') ?? now;
+      ranges.add((start, end));
+    }
+    if (ranges.isEmpty) return 0;
+
+    // Başlangıca göre sırala
+    ranges.sort((a, b) => a.$1.compareTo(b.$1));
+
+    int totalMonths = 0;
+    DateTime? mergedStart;
+    DateTime? mergedEnd;
+
+    for (final r in ranges) {
+      if (mergedStart == null) {
+        mergedStart = r.$1;
+        mergedEnd = r.$2;
+      } else if (r.$1.isBefore(mergedEnd!) || r.$1 == mergedEnd) {
+        // Örtüşme: mevcut aralığı genişlet
+        if (r.$2.isAfter(mergedEnd)) mergedEnd = r.$2;
+      } else {
+        totalMonths += _monthsBetween(mergedStart, mergedEnd);
+        mergedStart = r.$1;
+        mergedEnd = r.$2;
+      }
+    }
+    if (mergedStart != null && mergedEnd != null) {
+      totalMonths += _monthsBetween(mergedStart, mergedEnd);
+    }
+    return totalMonths;
+  }
+
+  /// Hero bölümü için otomatik hesaplanan istatistikler döndürür.
+  ///
+  /// Dönüş: { 'project_count': int, 'expertise_areas': [{name, color, years}] }
+  Future<Map<String, dynamic>> getAutoStats() async {
+    try {
+      final results = await Future.wait([
+        getProjects(),
+        getExpertiseAreas(),
+        getWorkExperience(),
+      ]);
+
+      final projects = results[0] as List<dynamic>;
+      final areas = (results[1] as List).cast<Map<String, dynamic>>();
+      final workExps = (results[2] as List).cast<Map<String, dynamic>>();
+
+      final expertiseWithYears = areas.map((area) {
+        return {
+          'id': area['id'],
+          'name': area['name'],
+          'color': area['color'] ?? '#58A6FF',
+          'years': _calculateYears(area, areas, workExps: workExps),
+          'order_index': area['order_index'] ?? 0,
+        };
+      }).toList();
+
+      return {
+        'project_count': projects.length,
+        'expertise_areas': expertiseWithYears,
+      };
+    } catch (e) {
+      debugPrint('Error getting auto stats: $e');
+      return {
+        'project_count': 0,
+        'expertise_areas': <Map<String, dynamic>>[],
+      };
     }
   }
 

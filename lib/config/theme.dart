@@ -102,7 +102,7 @@ class AppTheme {
         // Büyük başlıklar - Monospace font (JetBrains Mono)
         // Ana sayfa hero bölümü gibi büyük başlıklar için
         displayLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 48,
+          fontSize: 44,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -1,
@@ -110,7 +110,7 @@ class AppTheme {
         
         // Orta başlıklar - sayfa başlıkları için
         displayMedium: GoogleFonts.jetBrainsMono(
-          fontSize: 36,
+          fontSize: FontSize.xxxxxxxxxlarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.5,
@@ -118,24 +118,24 @@ class AppTheme {
         
         // Küçük başlıklar - bölüm başlıkları için
         displaySmall: GoogleFonts.jetBrainsMono(
-          fontSize: 28,
+          fontSize: FontSize.xxxxxxlarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
         
         // Headline stilleri - alt başlıklar için
         headlineLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 24,
+          fontSize: FontSize.xxxxlarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
         headlineMedium: GoogleFonts.jetBrainsMono(
-          fontSize: 20,
+          fontSize: FontSize.xxxlarge,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
         headlineSmall: GoogleFonts.jetBrainsMono(
-          fontSize: 18,
+          fontSize: FontSize.xxlarge,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
@@ -143,19 +143,19 @@ class AppTheme {
         // Gövde metni stilleri - Sans-serif font (Source Sans 3)
         // Okunabilirlik için optimize edilmiş satır yüksekliği
         bodyLarge: GoogleFonts.sourceSans3(
-          fontSize: 18,
+          fontSize: FontSize.xslarge,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           height: 1.6,
         ),
         bodyMedium: GoogleFonts.sourceSans3(
-          fontSize: 16,
+          fontSize: FontSize.large,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           height: 1.6,
         ),
         bodySmall: GoogleFonts.sourceSans3(
-          fontSize: 14,
+          fontSize: FontSize.medium,
           fontWeight: FontWeight.w400,
           color: textMuted,
           height: 1.5,
@@ -163,19 +163,19 @@ class AppTheme {
         
         // Etiket stilleri - butonlar, chip'ler, küçük metinler için
         labelLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 14,
+          fontSize: FontSize.medium,
           fontWeight: FontWeight.w500,
           color: textPrimary,
           letterSpacing: 0.5,
         ),
         labelMedium: GoogleFonts.jetBrainsMono(
-          fontSize: 12,
+          fontSize: FontSize.small,
           fontWeight: FontWeight.w500,
           color: textSecondary,
           letterSpacing: 0.5,
         ),
         labelSmall: GoogleFonts.jetBrainsMono(
-          fontSize: 10,
+          fontSize: FontSize.ssmall,
           fontWeight: FontWeight.w500,
           color: textMuted,
           letterSpacing: 1,
@@ -192,7 +192,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         titleTextStyle: GoogleFonts.jetBrainsMono(
-          fontSize: 18,
+          fontSize: FontSize.xlarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
@@ -203,9 +203,9 @@ class AppTheme {
       cardTheme: CardTheme(
         color: surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: border, width: 1),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spacing.sm)),
+          side: BorderSide(color: border, width: 1),
         ),
       ),
       
@@ -216,11 +216,11 @@ class AppTheme {
           foregroundColor: background,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(Spacing.sm)),
           ),
           textStyle: GoogleFonts.jetBrainsMono(
-            fontSize: 14,
+            fontSize: FontSize.medium,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -231,12 +231,12 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: textPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(Spacing.sm)),
           ),
           side: const BorderSide(color: border, width: 1),
           textStyle: GoogleFonts.jetBrainsMono(
-            fontSize: 14,
+            fontSize: FontSize.medium,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -253,15 +253,15 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: surfaceLight,
         labelStyle: GoogleFonts.jetBrainsMono(
-          fontSize: 12,
+          fontSize: FontSize.small,
           fontWeight: FontWeight.w500,
           color: textSecondary,
         ),
         side: const BorderSide(color: border, width: 1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AppBorderRadius.small)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xsm, vertical: Spacing.sm),
       ),
     );
   }
@@ -310,6 +310,9 @@ class Spacing {
   
   /// Küçük boşluk: 8px
   static const double sm = 8;
+
+  /// Orta küçük boşluk: 12px
+  static const double xsm = 12;
   
   /// Orta boşluk: 16px - varsayılan padding
   static const double md = 16;
@@ -332,3 +335,39 @@ class Spacing {
   /// İçerik alanının maksimum genişliği: 1200px
   static const double contentMaxWidth = 1200;
 }
+
+// ============================================================
+// BORDER RADIUS TOKENLARI
+// ============================================================
+class AppBorderRadius {
+  static const double small = 4;
+  static const double xsmall = 6;
+  static const double medium = 8;
+  static const double xmedium = 10;
+  static const double large = 16;
+  static const double xlarge = 32;
+  static const double xxlarge = 64;
+  static const double xxxlarge = 128;
+  static const double xxxxlarge = 256;
+}
+
+// ============================================================
+// FONT SIZE
+// ============================================================
+class FontSize {
+  static const double ssmall = 10;
+  static const double small = 12;
+  static const double medium = 14;
+  static const double large = 16;
+  static const double xslarge = 17;
+  static const double xlarge = 18;
+  static const double xxlarge = 20;
+  static const double xxxlarge = 22;
+  static const double xxxxlarge = 24;
+  static const double xxxxxlarge = 26;
+  static const double xxxxxxlarge = 28;
+  static const double xxxxxxxlarge = 30;
+  static const double xxxxxxxxlarge = 32;
+  static const double xxxxxxxxxlarge = 34;
+}
+

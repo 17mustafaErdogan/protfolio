@@ -1,439 +1,448 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../data/projects_data.dart';
-import '../data/cv_data.dart';
-import '../models/project.dart';
+import '../config/routes.dart';
+import '../services/data_service.dart';
 import '../utils/responsive.dart';
-import '../widgets/common/section_title.dart';
-import '../widgets/cv/work_experience_section.dart';
-import '../widgets/cv/education_section.dart';
-import '../widgets/cv/certificates_section.dart';
-import '../widgets/cv/languages_section.dart';
 
-/// Hakkımda sayfası - kişisel bilgiler ve profesyonel geçmiş.
+/// Hakkımda sayfası.
 /// 
-/// Bu sayfa şu bölümlerden oluşur:
-/// 1. Biyografi - profil fotoğrafı, isim, unvan, açıklama, istatistikler
-/// 2. Teknik Beceriler - kategorilere göre gruplandırılmış beceriler
-/// 3. Deneyim Timeline - iş geçmişi kronolojisi (cv_data'dan)
-/// 4. Eğitim - akademik geçmiş (cv_data'dan, boşsa gizlenir)
-/// 5. Sertifikalar - profesyonel sertifikalar (cv_data'dan, boşsa gizlenir)
-/// 6. Diller - yabancı dil becerileri (cv_data'dan, boşsa gizlenir)
+/// Kişisel/felsefi içerik - "Bu kişi kim, nasıl düşünüyor, 
+/// hangi problemleri çözmeyi seviyor ve neden onunla çalışmalıyım?"
 /// 
-/// Responsive tasarım:
-/// - Masaüstünde: Profil fotoğrafı sol, biyografi sağda
-/// - Mobilde: Profil fotoğrafı üstte, biyografi altta
-class AboutScreen extends StatelessWidget {
+/// Bölümler:
+/// 1. Hero - Profil resmi + kısa tanıtım
+/// 2. Hikayem - Kim olduğum, nasıl başladım
+/// 3. Vizyonum - Neye inanıyorum, hedeflerim
+/// 4. Problem Çözme Yaklaşımım - Nasıl düşünüyorum
+/// 5. Neden Benimle Çalışmalısınız? - Değer önerileri
+/// 6. CTA - İletişim butonu
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
-  
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  Map<String, dynamic>? _personalInfo;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final dataService = context.read<DataService>();
+    final personalInfo = await dataService.getPersonalInfo();
+    
+    if (mounted) {
+      setState(() {
+        _personalInfo = personalInfo;
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
+    final sectionPadding = Responsive.sectionPadding(context);
     
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Spacing.xxl),
-      child: ContentContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Sayfa başlığı
-            const SectionTitle(
-              title: 'Hakkımda',
-              subtitle: 'Mühendislik yolculuğum ve profesyonel geçmişim',
-            ),
-            const SizedBox(height: Spacing.xxl),
-            
-            // ============================================================
-            // BİYOGRAFİ BÖLÜMÜ
-            // ============================================================
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profil fotoğrafı
-                  _buildProfileImage(200),
-                  const SizedBox(width: Spacing.xxl),
-                  Expanded(child: _BioContent()),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  // Mobil: Daha küçük profil fotoğrafı
-                  _buildProfileImage(150),
-                  const SizedBox(height: Spacing.xl),
-                  _BioContent(),
-                ],
-              ),
-            
-            const SizedBox(height: Spacing.xxl),
-            const Divider(),
-            const SizedBox(height: Spacing.xxl),
-            
-            // ============================================================
-            // TEKNİK BECERİLER BÖLÜMÜ
-            // ============================================================
-            const SectionTitle(
-              title: 'Teknik Beceriler',
-              subtitle: 'Uzmanlaştığım araçlar ve teknolojiler',
-            ),
-            const SizedBox(height: Spacing.xl),
-            
-            _SkillsGrid(),
-            
-            const SizedBox(height: Spacing.xxl),
-            const Divider(),
-            const SizedBox(height: Spacing.xxl),
-            
-            // ============================================================
-            // İŞ DENEYİMİ (CV Data'dan)
-            // ============================================================
-            if (workExperiences.isNotEmpty) ...[
-              WorkExperienceSection(items: workExperiences),
-              const Divider(),
-              const SizedBox(height: Spacing.xxl),
-            ],
-            
-            // ============================================================
-            // EĞİTİM (CV Data'dan - boşsa gizlenir)
-            // ============================================================
-            EducationSection(items: educationList),
-            
-            // ============================================================
-            // SERTİFİKALAR (CV Data'dan - boşsa gizlenir)
-            // ============================================================
-            CertificatesSection(items: certificates),
-            
-            // ============================================================
-            // DİLLER (CV Data'dan - boşsa gizlenir)
-            // ============================================================
-            LanguagesSection(items: languages),
-            
-            SizedBox(height: Spacing.sectionPadding),
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    return Column(
+      children: [
+        // ============================================================
+        // HERO BÖLÜMÜ
+        // ============================================================
+        RepaintBoundary(child: _buildHeroSection(isDesktop)),
+        
+        // ============================================================
+        // HİKAYEM
+        // ============================================================
+        RepaintBoundary(child: _buildStorySection(isDesktop)),
+        
+        // ============================================================
+        // VİZYONUM
+        // ============================================================
+        RepaintBoundary(child: _buildVisionSection(isDesktop)),
+        
+        // ============================================================
+        // PROBLEM ÇÖZME YAKLAŞIMIM
+        // ============================================================
+        RepaintBoundary(child: _buildApproachSection(isDesktop)),
+        
+        // ============================================================
+        // NEDEN BENİMLE ÇALIŞMALISINIZ?
+        // ============================================================
+        RepaintBoundary(child: _buildWhyMeSection(isDesktop)),
+        
+        // ============================================================
+        // CTA
+        // ============================================================
+        RepaintBoundary(child: _buildCTASection()),
+        
+        SizedBox(height: sectionPadding),
+      ],
+    );
+  }
+
+  Widget _buildHeroSection(bool isDesktop) {
+    final name = _personalInfo?['full_name'] ?? 'Mühendis İsmi';
+    final title = _personalInfo?['title'] ?? 'Multidisipliner Mühendis';
+    final bio = _personalInfo?['bio'] ?? '';
+    
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: isDesktop ? Spacing.xxxl * 2 : Spacing.xxl,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppTheme.background,
+            AppTheme.surface.withOpacity(0.5),
           ],
         ),
       ),
+      child: ContentContainer(
+        child: isDesktop
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Profil resmi
+                  _buildProfileImage(150),
+                  const SizedBox(width: Spacing.xxl),
+                  
+                  // Bilgiler
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Merhaba,',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.sm),
+                        Text(
+                          'Ben $name',
+                          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.sm),
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppTheme.accent,
+                          ),
+                        ),
+                        if (bio.isNotEmpty) ...[
+                          const SizedBox(height: Spacing.lg),
+                          Text(
+                            bio,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  _buildProfileImage(120),
+                  const SizedBox(height: Spacing.xl),
+                  Text(
+                    'Merhaba,',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    'Ben $name',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.accent,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (bio.isNotEmpty) ...[
+                    const SizedBox(height: Spacing.lg),
+                    Text(
+                      bio,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+      ),
     );
   }
-  
-  /// Profil fotoğrafı widget'ı oluşturur.
+
   Widget _buildProfileImage(double size) {
-    // Profil fotoğrafı varsa göster, yoksa placeholder
-    if (personalInfo.profileImageUrl != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.asset(
-          personalInfo.profileImageUrl!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(size),
-        ),
-      );
-    }
-    return _buildPlaceholder(size);
-  }
-  
-  /// Profil fotoğrafı placeholder'ı.
-  Widget _buildPlaceholder(double size) {
+    final name = _personalInfo?['full_name'] ?? '';
+    
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.border),
+        color: AppTheme.accent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(size / 2),
+        border: Border.all(
+          color: AppTheme.accent.withOpacity(0.3),
+          width: 4,
+        ),
       ),
       child: Center(
-        child: Icon(
-          Icons.person_outline,
-          size: size * 0.32,
-          color: AppTheme.textMuted,
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: AppTheme.accent,
+            fontSize: size * 0.4,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
-}
 
-/// Biyografi içeriği - isim, unvan, açıklama ve istatistikler.
-/// 
-/// cv_data.dart'taki personalInfo verisini kullanır.
-class _BioContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // İsim
-        Text(
-          personalInfo.fullName,
-          style: Theme.of(context).textTheme.displaySmall,
-        ),
-        const SizedBox(height: Spacing.sm),
-        
-        // Unvan
-        Text(
-          personalInfo.title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppTheme.accent,
-          ),
-        ),
-        const SizedBox(height: Spacing.lg),
-        
-        // Ana açıklama
-        Text(
-          personalInfo.bio,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        
-        // Detay açıklama (varsa)
-        if (personalInfo.detailedBio != null) ...[
-          const SizedBox(height: Spacing.md),
-          Text(
-            personalInfo.detailedBio!,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-        const SizedBox(height: Spacing.lg),
-        
-        // Konum (varsa)
-        if (personalInfo.location != null) ...[
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                size: 16,
-                color: AppTheme.textMuted,
+  Widget _buildStorySection(bool isDesktop) {
+    final story = _personalInfo?['story'] ?? 
+        'Hikayem henüz eklenmedi. Admin panelinden "Ayarlar" bölümünden hikayenizi ekleyebilirsiniz.';
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: Responsive.sectionPadding(context)),
+      child: ContentContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              icon: Icons.auto_stories,
+              title: 'Hikayem',
+              color: AppTheme.electronics,
+            ),
+            const SizedBox(height: Spacing.xl),
+            Container(
+              padding: const EdgeInsets.all(Spacing.xl),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
               ),
-              const SizedBox(width: Spacing.xs),
+              child: Text(
+                story,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: 1.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisionSection(bool isDesktop) {
+    final vision = _personalInfo?['vision'] ?? 
+        'Vizyonum henüz eklenmedi. Admin panelinden "Ayarlar" bölümünden vizyonunuzu ekleyebilirsiniz.';
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: Responsive.sectionPadding(context)),
+      color: AppTheme.surface.withOpacity(0.3),
+      child: ContentContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              icon: Icons.visibility,
+              title: 'Vizyonum',
+              color: AppTheme.mechanical,
+            ),
+            const SizedBox(height: Spacing.xl),
+            Container(
+              padding: const EdgeInsets.all(Spacing.xl),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Text(
+                vision,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: 1.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApproachSection(bool isDesktop) {
+    final approach = _personalInfo?['approach'] ?? 
+        'Problem çözme yaklaşımım henüz eklenmedi. Admin panelinden "Ayarlar" bölümünden ekleyebilirsiniz.';
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: Responsive.sectionPadding(context)),
+      child: ContentContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              icon: Icons.psychology,
+              title: 'Problem Çözme Yaklaşımım',
+              color: AppTheme.software,
+            ),
+            const SizedBox(height: Spacing.xl),
+            Container(
+              padding: const EdgeInsets.all(Spacing.xl),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Text(
+                approach,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: 1.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWhyMeSection(bool isDesktop) {
+    final whyMe = _personalInfo?['why_me'] ?? 
+        'Neden benimle çalışmalısınız içeriği henüz eklenmedi. Admin panelinden "Ayarlar" bölümünden ekleyebilirsiniz.';
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: Responsive.sectionPadding(context)),
+      color: AppTheme.surface.withOpacity(0.3),
+      child: ContentContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              icon: Icons.handshake,
+              title: 'Neden Benimle Çalışmalısınız?',
+              color: AppTheme.accentGreen,
+            ),
+            const SizedBox(height: Spacing.xl),
+            Container(
+              padding: const EdgeInsets.all(Spacing.xl),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Text(
+                whyMe,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: 1.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(Spacing.md),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 28),
+        ),
+        const SizedBox(width: Spacing.lg),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCTASection() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: Responsive.sectionPadding(context)),
+      child: ContentContainer(
+        child: Center(
+          child: Column(
+            children: [
               Text(
-                personalInfo.location!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                'Birlikte çalışmak ister misiniz?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Spacing.md),
+              Text(
+                'Projeleriniz veya fikirleriniz hakkında konuşmak için benimle iletişime geçin.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Spacing.xl),
+              ElevatedButton.icon(
+                onPressed: () => context.go(AppRoutes.contact),
+                icon: const Icon(Icons.mail_outline),
+                label: const Text('İletişime Geç'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.xl,
+                    vertical: Spacing.md,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: Spacing.lg),
-        ],
-        
-        // İstatistikler satırı
-        Row(
-          children: [
-            _StatItem(value: Stats.projectCount, label: 'Proje'),
-            const SizedBox(width: Spacing.xl),
-            _StatItem(value: Stats.yearsExperience, label: 'Yıl Deneyim'),
-            const SizedBox(width: Spacing.xl),
-            _StatItem(value: Stats.expertiseAreas, label: 'Uzmanlık Alanı'),
-          ],
-        ),
-        
-        // Sosyal linkler
-        const SizedBox(height: Spacing.lg),
-        _SocialLinks(),
-      ],
-    );
-  }
-}
-
-/// Sosyal medya linkleri widget'ı.
-class _SocialLinks extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final links = <_SocialLinkData>[];
-    
-    if (personalInfo.githubUrl != null) {
-      links.add(_SocialLinkData(
-        icon: Icons.code,
-        label: 'GitHub',
-        url: personalInfo.githubUrl!,
-      ));
-    }
-    if (personalInfo.linkedinUrl != null) {
-      links.add(_SocialLinkData(
-        icon: Icons.business,
-        label: 'LinkedIn',
-        url: personalInfo.linkedinUrl!,
-      ));
-    }
-    if (personalInfo.email != null) {
-      links.add(_SocialLinkData(
-        icon: Icons.email_outlined,
-        label: personalInfo.email!,
-        url: 'mailto:${personalInfo.email}',
-      ));
-    }
-    
-    if (links.isEmpty) return const SizedBox.shrink();
-    
-    return Wrap(
-      spacing: Spacing.md,
-      runSpacing: Spacing.sm,
-      children: links.map((link) => _SocialLinkButton(data: link)).toList(),
-    );
-  }
-}
-
-class _SocialLinkData {
-  final IconData icon;
-  final String label;
-  final String url;
-  
-  const _SocialLinkData({
-    required this.icon,
-    required this.label,
-    required this.url,
-  });
-}
-
-class _SocialLinkButton extends StatelessWidget {
-  final _SocialLinkData data;
-  
-  const _SocialLinkButton({required this.data});
-  
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: () {
-        // TODO: URL açma işlemi (url_launcher paketi gerekli)
-      },
-      icon: Icon(data.icon, size: 16),
-      label: Text(data.label),
-      style: TextButton.styleFrom(
-        foregroundColor: AppTheme.accent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.sm,
-          vertical: Spacing.xs,
         ),
       ),
     );
-  }
-}
-
-/// Tek bir istatistik öğesi (değer + etiket).
-class _StatItem extends StatelessWidget {
-  /// Büyük gösterilen değer (örn: "15+")
-  final String value;
-  
-  /// Altındaki açıklama etiketi (örn: "Proje")
-  final String label;
-  
-  const _StatItem({required this.value, required this.label});
-  
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            color: AppTheme.accent,
-          ),
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppTheme.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Beceriler grid'i - kategorilere göre gruplandırılmış beceri chip'leri.
-/// 
-/// Her kategori (Elektronik/Mekanik/Yazılım) ayrı bir kart içinde gösterilir.
-/// Beceriler tooltip ile açıklama içerir.
-class _SkillsGrid extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Becerileri kategorilere göre grupla
-    final skillsByCategory = <ProjectCategory, List<Skill>>{};
-    for (final skill in skills) {
-      skillsByCategory.putIfAbsent(skill.category, () => []).add(skill);
-    }
-    
-    return Column(
-      children: ProjectCategory.values.map((category) {
-        final categorySkills = skillsByCategory[category] ?? [];
-        final color = _getCategoryColor(category);
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: Spacing.lg),
-          padding: const EdgeInsets.all(Spacing.lg),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Kategori başlığı
-              Row(
-                children: [
-                  Text(
-                    category.icon,
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(width: Spacing.sm),
-                  Text(
-                    category.displayName,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Spacing.md),
-              
-              // Beceri chip'leri
-              Wrap(
-                spacing: Spacing.sm,
-                runSpacing: Spacing.sm,
-                children: categorySkills.map((skill) {
-                  return Tooltip(
-                    message: skill.description,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.md,
-                        vertical: Spacing.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: color.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        skill.name,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-  
-  /// Kategoriye göre renk döndürür.
-  Color _getCategoryColor(ProjectCategory category) {
-    switch (category) {
-      case ProjectCategory.electronics:
-        return AppTheme.electronics;
-      case ProjectCategory.mechanical:
-        return AppTheme.mechanical;
-      case ProjectCategory.software:
-        return AppTheme.software;
-    }
   }
 }

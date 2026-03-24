@@ -1,5 +1,20 @@
 import 'package:flutter/material.dart';
 
+DateTime _parseDate(dynamic value) {
+  if (value is DateTime) return value;
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value) ?? DateTime(1970);
+  }
+  return DateTime(1970);
+}
+
+List<String> _asStringList(dynamic value) {
+  if (value is List) {
+    return value.map((e) => e.toString()).toList();
+  }
+  return const [];
+}
+
 /// Eğitim bilgisini temsil eden veri modeli.
 /// 
 /// Üniversite, lise veya diğer eğitim kurumlarındaki
@@ -31,6 +46,17 @@ class Education {
     this.description,
     this.gpa,
   });
+
+  factory Education.fromMap(Map<String, dynamic> map) {
+    return Education(
+      degree: map['degree'] ?? '',
+      field: map['field'] ?? '',
+      institution: map['institution'] ?? '',
+      period: map['period'] ?? '',
+      description: map['description'],
+      gpa: map['gpa'],
+    );
+  }
 }
 
 /// Sertifika veya kurs bilgisini temsil eden veri modeli.
@@ -60,6 +86,16 @@ class Certificate {
     this.credentialUrl,
     this.credentialId,
   });
+
+  factory Certificate.fromMap(Map<String, dynamic> map) {
+    return Certificate(
+      name: map['name'] ?? '',
+      issuer: map['issuer'] ?? '',
+      date: _parseDate(map['date']),
+      credentialUrl: map['credential_url'],
+      credentialId: map['credential_id'],
+    );
+  }
 }
 
 /// Yabancı dil becerisini temsil eden veri modeli.
@@ -80,6 +116,14 @@ class LanguageSkill {
     required this.level,
     this.proficiencyPercent,
   });
+
+  factory LanguageSkill.fromMap(Map<String, dynamic> map) {
+    return LanguageSkill(
+      language: map['language'] ?? '',
+      level: map['level'] ?? '',
+      proficiencyPercent: map['proficiency_percent'],
+    );
+  }
 }
 
 /// Başarı veya ödül bilgisini temsil eden veri modeli.
@@ -105,6 +149,15 @@ class Achievement {
     this.date,
     this.organization,
   });
+
+  factory Achievement.fromMap(Map<String, dynamic> map) {
+    return Achievement(
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      date: map['date'] == null ? null : _parseDate(map['date']),
+      organization: map['organization'],
+    );
+  }
 }
 
 /// Yayın veya makale bilgisini temsil eden veri modeli.
@@ -138,6 +191,17 @@ class Publication {
     this.coAuthors,
     this.abstract,
   });
+
+  factory Publication.fromMap(Map<String, dynamic> map) {
+    return Publication(
+      title: map['title'] ?? '',
+      venue: map['venue'] ?? '',
+      date: _parseDate(map['date']),
+      url: map['url'],
+      coAuthors: _asStringList(map['co_authors']),
+      abstract: map['abstract'],
+    );
+  }
 }
 
 /// Referans bilgisini temsil eden veri modeli.
@@ -171,6 +235,17 @@ class Reference {
     this.phone,
     this.relationship,
   });
+
+  factory Reference.fromMap(Map<String, dynamic> map) {
+    return Reference(
+      name: map['name'] ?? '',
+      title: map['title'] ?? '',
+      company: map['company'] ?? '',
+      email: map['email'],
+      phone: map['phone'],
+      relationship: map['relationship'],
+    );
+  }
 }
 
 /// İş deneyimini temsil eden veri modeli.
@@ -216,6 +291,19 @@ class WorkExperience {
     this.employmentType,
     this.color,
   });
+
+  factory WorkExperience.fromMap(Map<String, dynamic> map) {
+    return WorkExperience(
+      title: map['title'] ?? '',
+      company: map['company'] ?? '',
+      period: map['period'] ?? '',
+      description: map['description'],
+      highlights: _asStringList(map['highlights']),
+      logoUrl: map['logo_url'],
+      location: map['location'],
+      employmentType: map['employment_type'],
+    );
+  }
 }
 
 /// Kişisel bilgileri temsil eden veri modeli.

@@ -3,12 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../services/data_service.dart';
-import '../../utils/responsive.dart';
-
 /// Proje ekleme/düzenleme ekranı.
 class ProjectEditScreen extends StatefulWidget {
   final String? projectId;
-  
+
   const ProjectEditScreen({super.key, this.projectId});
 
   @override
@@ -17,8 +15,7 @@ class ProjectEditScreen extends StatefulWidget {
 
 class _ProjectEditScreenState extends State<ProjectEditScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  // Form controllers
+
   final _titleController = TextEditingController();
   final _subtitleController = TextEditingController();
   final _problemController = TextEditingController();
@@ -30,20 +27,23 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
   final _demoController = TextEditingController();
   final _tagsController = TextEditingController();
   final _techController = TextEditingController();
-  
-  String _category = 'electronics';
+
+  String? _expertiseAreaId;
   bool _featured = false;
-  DateTime _date = DateTime.now();
+  DateTime _startDate = DateTime.now();
+  DateTime? _endDate;
+  bool _isOngoing = true;
   bool _isLoading = false;
   bool _isEditMode = false;
+  List<Map<String, dynamic>> _expertiseAreas = [];
 
   @override
   void initState() {
     super.initState();
     _isEditMode = widget.projectId != null;
-    if (_isEditMode) {
-      _loadProject();
-    }
+    _loadExpertiseAreas().then((_) {
+      if (_isEditMode) _loadProject();
+    });
   }
 
   @override
@@ -62,12 +62,15 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
     super.dispose();
   }
 
+  Future<void> _loadExpertiseAreas() async {
+    final areas = await context.read<DataService>().getExpertiseAreas();
+    if (mounted) setState(() => _expertiseAreas = areas);
+  }
+
   Future<void> _loadProject() async {
     setState(() => _isLoading = true);
-    
-    final dataService = context.read<DataService>();
-    final project = await dataService.getProject(widget.projectId!);
-    
+    final project =
+        await context.read<DataService>().getProject(widget.projectId!);
     if (project != null && mounted) {
       setState(() {
         _titleController.text = project['title'] ?? '';
@@ -79,12 +82,23 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
         _lessonsController.text = project['lessons_learned'] ?? '';
         _githubController.text = project['github_url'] ?? '';
         _demoController.text = project['demo_url'] ?? '';
-        _category = project['category'] ?? 'electronics';
+        _expertiseAreaId = project['expertise_area_id'] as String?;
         _featured = project['featured'] ?? false;
-        _tagsController.text = (project['tags'] as List?)?.join(', ') ?? '';
-        _techController.text = (project['technologies'] as List?)?.join(', ') ?? '';
-        if (project['date'] != null) {
-          _date = DateTime.parse(project['date']);
+        _tagsController.text =
+            (project['tags'] as List?)?.join(', ') ?? '';
+        _techController.text =
+            (project['technologies'] as List?)?.join(', ') ?? '';
+        if (project['start_date'] != null) {
+          _startDate = DateTime.parse(project['start_date']);
+        } else if (project['date'] != null) {
+          _startDate = DateTime.parse(project['date']);
+        }
+        if (project['end_date'] != null) {
+          _endDate = DateTime.parse(project['end_date']);
+          _isOngoing = false;
+        } else {
+          _endDate = null;
+          _isOngoing = true;
         }
         _isLoading = false;
       });
@@ -95,53 +109,58 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
 
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) return;
-    
     setState(() => _isLoading = true);
-    
+
     final data = {
       'title': _titleController.text.trim(),
       'subtitle': _subtitleController.text.trim(),
-      'category': _category,
+      'expertise_area_id': _expertiseAreaId,
       'featured': _featured,
-      'date': _date.toIso8601String().substring(0, 10),
+      'start_date': _startDate.toIso8601String().substring(0, 10),
+      'end_date': _isOngoing ? null : _endDate?.toIso8601String().substring(0, 10),
+      'date': _startDate.toIso8601String().substring(0, 10),
       'problem': _problemController.text.trim(),
       'approach': _approachController.text.trim(),
       'implementation': _implementationController.text.trim(),
       'results': _resultsController.text.trim(),
       'lessons_learned': _lessonsController.text.trim(),
-      'github_url': _githubController.text.trim().isEmpty ? null : _githubController.text.trim(),
-      'demo_url': _demoController.text.trim().isEmpty ? null : _demoController.text.trim(),
-      'tags': _tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-      'technologies': _techController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      'github_url': _githubController.text.trim().isEmpty
+          ? null
+          : _githubController.text.trim(),
+      'demo_url': _demoController.text.trim().isEmpty
+          ? null
+          : _demoController.text.trim(),
+      'tags': _tagsController.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
+      'technologies': _techController.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
     };
-    
-    final dataService = context.read<DataService>();
-    bool success;
-    
-    if (_isEditMode) {
-      success = await dataService.updateProject(widget.projectId!, data);
-    } else {
-      success = await dataService.createProject(data);
-    }
-    
+
+    final ds = context.read<DataService>();
+    final success = _isEditMode
+        ? await ds.updateProject(widget.projectId!, data)
+        : await ds.createProject(data);
+
     if (mounted) {
       setState(() => _isLoading = false);
-      
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEditMode ? 'Proje güncellendi' : 'Proje oluşturuldu'),
-            backgroundColor: AppTheme.accentGreen,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(_isEditMode ? 'Proje güncellendi' : 'Proje oluşturuldu'),
+          backgroundColor: AppTheme.accentGreen,
+        ));
         context.go('/admin/projects');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(dataService.errorMessage ?? 'Bir hata oluştu'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ds.errorMessage ?? 'Bir hata oluştu'),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }
@@ -159,7 +178,6 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Başlık
             Row(
               children: [
                 IconButton(
@@ -170,13 +188,13 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
                 Text(
                   _isEditMode ? 'Proje Düzenle' : 'Yeni Proje',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: Spacing.xxl),
-            
+
             // Temel Bilgiler
             _buildSection('Temel Bilgiler', [
               _buildTextField(
@@ -193,38 +211,20 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
                 maxLines: 2,
               ),
               const SizedBox(height: Spacing.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDropdown(
-                      label: 'Kategori',
-                      value: _category,
-                      items: const [
-                        DropdownMenuItem(value: 'electronics', child: Text('Elektronik')),
-                        DropdownMenuItem(value: 'mechanical', child: Text('Mekanik')),
-                        DropdownMenuItem(value: 'software', child: Text('Yazılım')),
-                      ],
-                      onChanged: (value) => setState(() => _category = value!),
-                    ),
-                  ),
-                  const SizedBox(width: Spacing.lg),
-                  Expanded(
-                    child: _buildDatePicker(),
-                  ),
-                ],
-              ),
+              _buildExpertiseAreaDropdown(),
+              const SizedBox(height: Spacing.lg),
+              _buildDateRangePicker(),
               const SizedBox(height: Spacing.lg),
               _buildSwitch(
                 label: 'Öne Çıkan Proje',
                 subtitle: 'Ana sayfada gösterilsin mi?',
                 value: _featured,
-                onChanged: (value) => setState(() => _featured = value),
+                onChanged: (v) => setState(() => _featured = v),
               ),
             ]),
-            
+
             const SizedBox(height: Spacing.xxl),
-            
-            // Dokümantasyon
+
             _buildSection('Dokümantasyon', [
               _buildTextField(
                 controller: _problemController,
@@ -261,10 +261,9 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
                 maxLines: 4,
               ),
             ]),
-            
+
             const SizedBox(height: Spacing.xxl),
-            
-            // Ek Bilgiler
+
             _buildSection('Ek Bilgiler', [
               _buildTextField(
                 controller: _tagsController,
@@ -290,10 +289,9 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
                 hint: 'https://demo.example.com',
               ),
             ]),
-            
+
             const SizedBox(height: Spacing.xxl),
-            
-            // Kaydet butonu
+
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -318,11 +316,67 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
                 ),
               ],
             ),
-            
             const SizedBox(height: Spacing.xxl),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildExpertiseAreaDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Uzmanlık Alanı',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+        ),
+        const SizedBox(height: Spacing.sm),
+        if (_expertiseAreas.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.md, vertical: Spacing.md),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Text(
+              'Önce Uzmanlık Alanı ekleyin',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
+          )
+        else
+          DropdownButtonFormField<String?>(
+            value: _expertiseAreaId,
+            dropdownColor: AppTheme.surface,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppTheme.background,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.border),
+              ),
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('— Seçilmedi —'),
+              ),
+              ..._expertiseAreas.map((a) => DropdownMenuItem<String?>(
+                    value: a['id'] as String,
+                    child: Text(a['name'] as String? ?? ''),
+                  )),
+            ],
+            onChanged: (v) => setState(() => _expertiseAreaId = v),
+          ),
+      ],
     );
   }
 
@@ -337,12 +391,11 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: Spacing.lg),
           ...children,
         ],
@@ -362,9 +415,10 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
       children: [
         Text(
           label + (required ? ' *' : ''),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: Spacing.sm),
         TextFormField(
@@ -390,93 +444,137 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
             ),
           ),
           validator: required
-              ? (value) => value?.isEmpty == true ? 'Bu alan zorunludur' : null
+              ? (v) => v?.isEmpty == true ? 'Bu alan zorunludur' : null
               : null,
         ),
       ],
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required String value,
-    required List<DropdownMenuItem<String>> items,
-    required ValueChanged<String?> onChanged,
-  }) {
+  Widget _buildDateRangePicker() {
+    final fmt = (DateTime d) => '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          'Proje Tarihleri',
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: Spacing.sm),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-          dropdownColor: AppTheme.surface,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppTheme.background,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.border),
+        Row(
+          children: [
+            // Başlangıç tarihi
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Başlangıç',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppTheme.textMuted,
+                          )),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                      );
+                      if (picked != null) setState(() => _startDate = picked);
+                    },
+                    child: _dateBox(fmt(_startDate)),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: Spacing.md),
+            // Bitiş tarihi
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bitiş',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppTheme.textMuted,
+                          )),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: _isOngoing
+                        ? null
+                        : () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _endDate ?? DateTime.now(),
+                              firstDate: _startDate,
+                              lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                            );
+                            if (picked != null) setState(() => _endDate = picked);
+                          },
+                    child: _dateBox(
+                      _isOngoing ? 'Devam Ediyor' : fmt(_endDate ?? DateTime.now()),
+                      muted: _isOngoing,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Spacing.sm),
+        Row(
+          children: [
+            Checkbox(
+              value: _isOngoing,
+              activeColor: AppTheme.accent,
+              onChanged: (v) => setState(() {
+                _isOngoing = v ?? true;
+                if (_isOngoing) _endDate = null;
+              }),
+            ),
+            Text('Devam Ediyor',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppTheme.textSecondary)),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildDatePicker() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tarih',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: Spacing.sm),
-        InkWell(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _date,
-              firstDate: DateTime(2000),
-              lastDate: DateTime.now(),
-            );
-            if (picked != null) {
-              setState(() => _date = picked);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.md,
-              vertical: Spacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.border),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: AppTheme.textMuted),
-                const SizedBox(width: Spacing.sm),
-                Text(
-                  '${_date.day}/${_date.month}/${_date.year}',
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                ),
-              ],
+  Widget _dateBox(String text, {bool muted = false}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.md, vertical: Spacing.md),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today,
+              size: 16,
+              color: muted ? AppTheme.textMuted : AppTheme.textSecondary),
+          const SizedBox(width: Spacing.xs),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: muted ? AppTheme.textMuted : AppTheme.textPrimary,
+                fontSize: 13,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -488,10 +586,7 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
   }) {
     return SwitchListTile(
       title: Text(label),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: AppTheme.textMuted),
-      ),
+      subtitle: Text(subtitle, style: TextStyle(color: AppTheme.textMuted)),
       value: value,
       onChanged: onChanged,
       activeColor: AppTheme.accent,

@@ -6,6 +6,7 @@ import '../screens/home_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/project_detail_screen.dart';
 import '../screens/about_screen.dart';
+import '../screens/profile_screen.dart';
 import '../screens/contact_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/admin/admin_shell.dart';
@@ -15,6 +16,7 @@ import '../screens/admin/project_edit_screen.dart';
 import '../screens/admin/skills_admin.dart';
 import '../screens/admin/cv_admin.dart';
 import '../screens/admin/settings_admin.dart';
+import '../screens/admin/expertise_areas_admin.dart';
 import '../services/auth_service.dart';
 import '../widgets/common/shell_scaffold.dart';
 
@@ -25,6 +27,7 @@ class AppRoutes {
   static const String projects = '/projects';
   static const String projectDetail = '/projects/:id';
   static const String about = '/about';
+  static const String profile = '/profile';
   static const String contact = '/contact';
   static const String login = '/login';
   
@@ -35,6 +38,7 @@ class AppRoutes {
   static const String adminProjectNew = '/admin/projects/new';
   static const String adminProjectEdit = '/admin/projects/:id/edit';
   static const String adminSkills = '/admin/skills';
+  static const String adminExpertiseAreas = '/admin/expertise-areas';
   static const String adminCV = '/admin/cv';
   static const String adminSettings = '/admin/settings';
   
@@ -42,14 +46,46 @@ class AppRoutes {
   static String adminProjectEditPath(String id) => '/admin/projects/$id/edit';
 }
 
-/// Router yapılandırması.
-final GoRouter router = GoRouter(
-  initialLocation: AppRoutes.home,
-  
-  // Auth durumunu yenile
-  refreshListenable: _authRefreshListenable,
-  
-  routes: [
+/// Admin sayfaları için yetkilendirme kontrolü.
+String? _adminRedirect(BuildContext context, GoRouterState state) {
+  final authService = context.read<AuthService>();
+  if (!authService.isLoggedIn) {
+    return AppRoutes.login;
+  }
+  return null;
+}
+
+/// Sayfa geçişleri için fade animasyonu.
+Widget _fadeTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  return FadeTransition(
+    opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+    child: child,
+  );
+}
+
+/// ShellRoute içindeki sayfalar için anlık geçiş.
+Page<void> _shellPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+  );
+}
+
+/// Router'ı oluşturur. AuthService, login/logout sonrası yönlendirmeyi
+/// tetiklemek için [refreshListenable] olarak kullanılır.
+GoRouter createRouter(AuthService authService) {
+  return GoRouter(
+    initialLocation: AppRoutes.home,
+    refreshListenable: authService,
+    routes: [
     // ============================================================
     // PUBLIC ROUTES (NavBar/Footer ile)
     // ============================================================
@@ -59,50 +95,35 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: AppRoutes.home,
           name: 'home',
-          pageBuilder: (context, state) => CustomTransitionPage(
-            key: state.pageKey,
-            child: const HomeScreen(),
-            transitionsBuilder: _fadeTransition,
-          ),
+          pageBuilder: (context, state) => _shellPage(state, const HomeScreen()),
         ),
         GoRoute(
           path: AppRoutes.projects,
           name: 'projects',
-          pageBuilder: (context, state) => CustomTransitionPage(
-            key: state.pageKey,
-            child: const ProjectsScreen(),
-            transitionsBuilder: _fadeTransition,
-          ),
+          pageBuilder: (context, state) => _shellPage(state, const ProjectsScreen()),
         ),
         GoRoute(
           path: AppRoutes.projectDetail,
           name: 'project-detail',
           pageBuilder: (context, state) {
             final projectId = state.pathParameters['id']!;
-            return CustomTransitionPage(
-              key: state.pageKey,
-              child: ProjectDetailScreen(projectId: projectId),
-              transitionsBuilder: _fadeTransition,
-            );
+            return _shellPage(state, ProjectDetailScreen(projectId: projectId));
           },
         ),
         GoRoute(
           path: AppRoutes.about,
           name: 'about',
-          pageBuilder: (context, state) => CustomTransitionPage(
-            key: state.pageKey,
-            child: const AboutScreen(),
-            transitionsBuilder: _fadeTransition,
-          ),
+          pageBuilder: (context, state) => _shellPage(state, const AboutScreen()),
+        ),
+        GoRoute(
+          path: AppRoutes.profile,
+          name: 'profile',
+          pageBuilder: (context, state) => _shellPage(state, const ProfileScreen()),
         ),
         GoRoute(
           path: AppRoutes.contact,
           name: 'contact',
-          pageBuilder: (context, state) => CustomTransitionPage(
-            key: state.pageKey,
-            child: const ContactScreen(),
-            transitionsBuilder: _fadeTransition,
-          ),
+          pageBuilder: (context, state) => _shellPage(state, const ContactScreen()),
         ),
       ],
     ),
@@ -188,6 +209,16 @@ final GoRouter router = GoRouter(
           ),
         ),
         GoRoute(
+          path: AppRoutes.adminExpertiseAreas,
+          name: 'admin-expertise-areas',
+          redirect: _adminRedirect,
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const ExpertiseAreasAdminScreen(),
+            transitionsBuilder: _fadeTransition,
+          ),
+        ),
+        GoRoute(
           path: AppRoutes.adminCV,
           name: 'admin-cv',
           redirect: _adminRedirect,
@@ -210,36 +241,5 @@ final GoRouter router = GoRouter(
       ],
     ),
   ],
-);
-
-/// Admin sayfaları için yetkilendirme kontrolü.
-String? _adminRedirect(BuildContext context, GoRouterState state) {
-  final authService = context.read<AuthService>();
-  if (!authService.isLoggedIn) {
-    return AppRoutes.login;
-  }
-  return null;
-}
-
-/// Auth durumu değişikliklerini dinlemek için listenable.
-final _authRefreshListenable = _AuthRefreshNotifier();
-
-class _AuthRefreshNotifier extends ChangeNotifier {
-  _AuthRefreshNotifier() {
-    // Bu basit bir implementasyon.
-    // Gerçek uygulamada AuthService'i dinlemek gerekir.
-  }
-}
-
-/// Sayfa geçişleri için fade animasyonu.
-Widget _fadeTransition(
-  BuildContext context,
-  Animation<double> animation,
-  Animation<double> secondaryAnimation,
-  Widget child,
-) {
-  return FadeTransition(
-    opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
-    child: child,
   );
 }
