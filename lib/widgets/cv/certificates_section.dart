@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/cv_models.dart';
+import '../../utils/open_url.dart';
 import '../../utils/responsive.dart';
 import '../common/section_title.dart';
 
@@ -124,9 +125,10 @@ class _CertificateCard extends StatelessWidget {
               ),
               if (hasUrl)
                 TextButton.icon(
-                  onPressed: () {
-                    // TODO: URL açma işlemi (url_launcher paketi gerekli)
-                  },
+                  onPressed: () => tryLaunchUrlString(
+                    certificate.credentialUrl,
+                    context: context,
+                  ),
                   icon: const Icon(Icons.open_in_new, size: 14),
                   label: const Text('Doğrula'),
                   style: TextButton.styleFrom(

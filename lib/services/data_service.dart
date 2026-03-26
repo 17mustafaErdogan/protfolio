@@ -1,27 +1,88 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/cv_models.dart';
+import 'repositories/project_repository.dart';
+import 'repositories/skill_repository.dart';
+import 'repositories/cv_repository.dart';
+import 'repositories/expertise_repository.dart';
+import 'repositories/contact_repository.dart';
+import 'repositories/personal_info_repository.dart';
 
-/// Supabase veritabani islemleri servisi.
-/// 
-/// Tum CRUD islemlerini yonetir:
-/// - Projeler
-/// - Beceriler
-/// - Egitim, Sertifika, Is Deneyimi
-/// - Diller, Basarilar, Yayinlar
-/// - Kisisel Bilgiler
+/// Uygulama genelinde kullanılan veri servisi (ChangeNotifier facade).
+///
+/// Sorumlulukları:
+/// - [isLoading] ve [errorMessage] state'ini yönetir
+/// - Tüm public metotların API'sini (isimleri) sabit tutar
+/// - Gerçek Supabase işlemlerini domain repository'lere delege eder
+///
+/// Repository'ler `lib/services/repositories/` altında bulunur:
+/// - [ProjectRepository]      → projeler
+/// - [SkillRepository]        → beceriler
+/// - [CvRepository]           → eğitim, sertifika, iş deneyimi, dil, başarı, yayın, referans
+/// - [ExpertiseRepository]    → uzmanlık alanları + deneyim yılı hesaplama
+/// - [ContactRepository]      → iletişim mesajları + dashboard istatistikleri
+/// - [PersonalInfoRepository] → kişisel bilgiler
 class DataService extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
+  late final ProjectRepository _projects;
+  late final SkillRepository _skills;
+  late final CvRepository _cv;
+  late final ExpertiseRepository _expertise;
+  late final ContactRepository _contact;
+  late final PersonalInfoRepository _personalInfo;
+
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  DataService() {
+    _projects = ProjectRepository(_supabase);
+    _skills = SkillRepository(_supabase);
+    _cv = CvRepository(_supabase);
+    _expertise = ExpertiseRepository(_supabase);
+    _contact = ContactRepository(_supabase);
+    _personalInfo = PersonalInfoRepository(_supabase);
+  }
 
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  static const String _readErrorUserMessage =
+      'Veriler yüklenemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.';
+
+  /// Okuma hatalarını kullanıcıya ve debug log'una bildirir.
+  void _notifyReadFailure(String operation, Object e) {
+    _errorMessage =
+        kDebugMode ? '$operation: $e' : _readErrorUserMessage;
+    notifyListeners();
+    debugPrint('DataService read failure ($operation): $e');
+  }
+
+  /// Yazma (mutasyon) işlemlerini saran yardımcı.
+  ///
+  /// Loading state'i yönetir ve hata durumunda [errorMessage]'ı doldurur.
+  Future<bool> _runMutation(
+    Future<void> Function() fn,
+    String errorPrefix,
+  ) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await fn();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = '$errorPrefix: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   // ============================================================
@@ -30,43 +91,15 @@ class DataService extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> getPersonalInfo() async {
     try {
-      final response = await _supabase
-          .from('personal_info')
-          .select()
-          .order('updated_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-      return response;
+      return await _personalInfo.get();
     } catch (e) {
-      debugPrint('Error getting personal info: $e');
+      _notifyReadFailure('getPersonalInfo', e);
       return null;
     }
   }
 
-  Future<bool> updatePersonalInfo(Map<String, dynamic> data) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      final existing = await getPersonalInfo();
-      if (existing != null) {
-        await _supabase
-            .from('personal_info')
-            .update(data)
-            .eq('id', existing['id']);
-      } else {
-        await _supabase.from('personal_info').insert(data);
-      }
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Kişisel bilgiler güncellenemedi: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updatePersonalInfo(Map<String, dynamic> data) =>
+      _runMutation(() => _personalInfo.upsert(data), 'Kişisel bilgiler güncellenemedi');
 
   // ============================================================
   // PROJECTS
@@ -74,82 +107,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getProjects({bool? featured}) async {
     try {
-      var query = _supabase.from('projects').select();
-      if (featured != null) {
-        query = query.eq('featured', featured);
-      }
-      final response = await query.order('date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      return await _projects.getAll(featured: featured);
     } catch (e) {
-      debugPrint('Error getting projects: $e');
+      _notifyReadFailure('getProjects', e);
       return [];
     }
   }
 
   Future<Map<String, dynamic>?> getProject(String id) async {
     try {
-      final response = await _supabase
-          .from('projects')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-      return response;
+      return await _projects.getById(id);
     } catch (e) {
-      debugPrint('Error getting project: $e');
+      _notifyReadFailure('getProject', e);
       return null;
     }
   }
 
-  Future<bool> createProject(Map<String, dynamic> data) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('projects').insert(data);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Proje oluşturulamadı: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createProject(Map<String, dynamic> data) =>
+      _runMutation(() => _projects.create(data), 'Proje oluşturulamadı');
 
-  Future<bool> updateProject(String id, Map<String, dynamic> data) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('projects').update(data).eq('id', id);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Proje güncellenemedi: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateProject(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _projects.update(id, data), 'Proje güncellenemedi');
 
-  Future<bool> deleteProject(String id) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('projects').delete().eq('id', id);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Proje silinemedi: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> deleteProject(String id) =>
+      _runMutation(() => _projects.delete(id), 'Proje silinemedi');
 
   // ============================================================
   // SKILLS
@@ -157,67 +138,21 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getSkills() async {
     try {
-      final response = await _supabase
-          .from('skills')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response);
+      return await _skills.getAll();
     } catch (e) {
-      debugPrint('Error getting skills: $e');
+      _notifyReadFailure('getSkills', e);
       return [];
     }
   }
 
-  Future<bool> createSkill(Map<String, dynamic> data) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('skills').insert(data);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Beceri oluşturulamadı: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createSkill(Map<String, dynamic> data) =>
+      _runMutation(() => _skills.create(data), 'Beceri oluşturulamadı');
 
-  Future<bool> updateSkill(String id, Map<String, dynamic> data) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('skills').update(data).eq('id', id);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Beceri güncellenemedi: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateSkill(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _skills.update(id, data), 'Beceri güncellenemedi');
 
-  Future<bool> deleteSkill(String id) async {
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      await _supabase.from('skills').delete().eq('id', id);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Beceri silinemedi: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> deleteSkill(String id) =>
+      _runMutation(() => _skills.delete(id), 'Beceri silinemedi');
 
   // ============================================================
   // EDUCATION
@@ -225,57 +160,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getEducation() async {
     try {
-      final response = await _supabase
-          .from('education')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getEducation();
     } catch (e) {
-      debugPrint('Error getting education: $e');
+      _notifyReadFailure('getEducation', e);
       return [];
     }
   }
 
   Future<List<Education>> getEducationItems() async {
-    final rows = await getEducation();
-    return rows.map(Education.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createEducation(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('education').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getEducationItems();
     } catch (e) {
-      _errorMessage = 'Eğitim oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getEducationItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateEducation(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('education').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Eğitim güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createEducation(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createEducation(data), 'Eğitim oluşturulamadı');
 
-  Future<bool> deleteEducation(String id) async {
-    try {
-      await _supabase.from('education').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Eğitim silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateEducation(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateEducation(id, data), 'Eğitim güncellenemedi');
+
+  Future<bool> deleteEducation(String id) =>
+      _runMutation(() => _cv.deleteEducation(id), 'Eğitim silinemedi');
 
   // ============================================================
   // CERTIFICATES
@@ -283,57 +191,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getCertificates() async {
     try {
-      final response = await _supabase
-          .from('certificates')
-          .select()
-          .order('date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getCertificates();
     } catch (e) {
-      debugPrint('Error getting certificates: $e');
+      _notifyReadFailure('getCertificates', e);
       return [];
     }
   }
 
   Future<List<Certificate>> getCertificateItems() async {
-    final rows = await getCertificates();
-    return rows.map(Certificate.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createCertificate(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('certificates').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getCertificateItems();
     } catch (e) {
-      _errorMessage = 'Sertifika oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getCertificateItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateCertificate(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('certificates').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Sertifika güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createCertificate(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createCertificate(data), 'Sertifika oluşturulamadı');
 
-  Future<bool> deleteCertificate(String id) async {
-    try {
-      await _supabase.from('certificates').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Sertifika silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateCertificate(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateCertificate(id, data), 'Sertifika güncellenemedi');
+
+  Future<bool> deleteCertificate(String id) =>
+      _runMutation(() => _cv.deleteCertificate(id), 'Sertifika silinemedi');
 
   // ============================================================
   // WORK EXPERIENCE
@@ -341,57 +222,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getWorkExperience() async {
     try {
-      final response = await _supabase
-          .from('work_experience')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getWorkExperience();
     } catch (e) {
-      debugPrint('Error getting work experience: $e');
+      _notifyReadFailure('getWorkExperience', e);
       return [];
     }
   }
 
   Future<List<WorkExperience>> getWorkExperienceItems() async {
-    final rows = await getWorkExperience();
-    return rows.map(WorkExperience.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createWorkExperience(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('work_experience').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getWorkExperienceItems();
     } catch (e) {
-      _errorMessage = 'İş deneyimi oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getWorkExperienceItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateWorkExperience(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('work_experience').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'İş deneyimi güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createWorkExperience(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createWorkExperience(data), 'İş deneyimi oluşturulamadı');
 
-  Future<bool> deleteWorkExperience(String id) async {
-    try {
-      await _supabase.from('work_experience').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'İş deneyimi silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateWorkExperience(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateWorkExperience(id, data), 'İş deneyimi güncellenemedi');
+
+  Future<bool> deleteWorkExperience(String id) =>
+      _runMutation(() => _cv.deleteWorkExperience(id), 'İş deneyimi silinemedi');
 
   // ============================================================
   // LANGUAGES
@@ -399,57 +253,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getLanguages() async {
     try {
-      final response = await _supabase
-          .from('languages')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getLanguages();
     } catch (e) {
-      debugPrint('Error getting languages: $e');
+      _notifyReadFailure('getLanguages', e);
       return [];
     }
   }
 
   Future<List<LanguageSkill>> getLanguageItems() async {
-    final rows = await getLanguages();
-    return rows.map(LanguageSkill.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createLanguage(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('languages').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getLanguageItems();
     } catch (e) {
-      _errorMessage = 'Dil oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getLanguageItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateLanguage(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('languages').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Dil güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createLanguage(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createLanguage(data), 'Dil oluşturulamadı');
 
-  Future<bool> deleteLanguage(String id) async {
-    try {
-      await _supabase.from('languages').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Dil silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateLanguage(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateLanguage(id, data), 'Dil güncellenemedi');
+
+  Future<bool> deleteLanguage(String id) =>
+      _runMutation(() => _cv.deleteLanguage(id), 'Dil silinemedi');
 
   // ============================================================
   // ACHIEVEMENTS
@@ -457,115 +284,61 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getAchievements() async {
     try {
-      final response = await _supabase
-          .from('achievements')
-          .select()
-          .order('date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getAchievements();
     } catch (e) {
-      debugPrint('Error getting achievements: $e');
+      _notifyReadFailure('getAchievements', e);
       return [];
     }
   }
 
   Future<List<Achievement>> getAchievementItems() async {
-    final rows = await getAchievements();
-    return rows.map(Achievement.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createAchievement(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('achievements').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getAchievementItems();
     } catch (e) {
-      _errorMessage = 'Başarı oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getAchievementItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateAchievement(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('achievements').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Başarı güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createAchievement(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createAchievement(data), 'Başarı oluşturulamadı');
 
-  Future<bool> deleteAchievement(String id) async {
-    try {
-      await _supabase.from('achievements').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Başarı silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateAchievement(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateAchievement(id, data), 'Başarı güncellenemedi');
+
+  Future<bool> deleteAchievement(String id) =>
+      _runMutation(() => _cv.deleteAchievement(id), 'Başarı silinemedi');
 
   // ============================================================
-  // REFERENCES (user_references)
+  // REFERENCES
   // ============================================================
 
   Future<List<Map<String, dynamic>>> getReferences() async {
     try {
-      final response = await _supabase
-          .from('user_references')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getReferences();
     } catch (e) {
-      debugPrint('Error getting references: $e');
+      _notifyReadFailure('getReferences', e);
       return [];
     }
   }
 
   Future<List<Reference>> getReferenceItems() async {
-    final rows = await getReferences();
-    return rows.map(Reference.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createReference(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('user_references').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getReferenceItems();
     } catch (e) {
-      _errorMessage = 'Referans oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getReferenceItems', e);
+      return [];
     }
   }
 
-  Future<bool> updateReference(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('user_references').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Referans güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createReference(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createReference(data), 'Referans oluşturulamadı');
 
-  Future<bool> deleteReference(String id) async {
-    try {
-      await _supabase.from('user_references').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Referans silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateReference(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updateReference(id, data), 'Referans güncellenemedi');
+
+  Future<bool> deleteReference(String id) =>
+      _runMutation(() => _cv.deleteReference(id), 'Referans silinemedi');
 
   // ============================================================
   // PUBLICATIONS
@@ -573,92 +346,30 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getPublications() async {
     try {
-      final response = await _supabase
-          .from('publications')
-          .select()
-          .order('date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      return await _cv.getPublications();
     } catch (e) {
-      debugPrint('Error getting publications: $e');
+      _notifyReadFailure('getPublications', e);
       return [];
     }
   }
 
   Future<List<Publication>> getPublicationItems() async {
-    final rows = await getPublications();
-    return rows.map(Publication.fromMap).toList(growable: false);
-  }
-
-  Future<bool> createPublication(Map<String, dynamic> data) async {
     try {
-      await _supabase.from('publications').insert(data);
-      notifyListeners();
-      return true;
+      return await _cv.getPublicationItems();
     } catch (e) {
-      _errorMessage = 'Yayın oluşturulamadı: $e';
-      notifyListeners();
-      return false;
+      _notifyReadFailure('getPublicationItems', e);
+      return [];
     }
   }
 
-  Future<bool> updatePublication(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('publications').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Yayın güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createPublication(Map<String, dynamic> data) =>
+      _runMutation(() => _cv.createPublication(data), 'Yayın oluşturulamadı');
 
-  Future<bool> deletePublication(String id) async {
-    try {
-      await _supabase.from('publications').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Yayın silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updatePublication(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _cv.updatePublication(id, data), 'Yayın güncellenemedi');
 
-  // ============================================================
-  // STATS
-  // ============================================================
-
-  Future<Map<String, dynamic>?> getStats() async {
-    try {
-      final response = await _supabase
-          .from('stats') // stats tablosu görevi: proje sayısı, deneyim yılı, uzmanlık alanları
-          .select()
-          .limit(1)
-          .maybeSingle();
-      return response;
-    } catch (e) {
-      debugPrint('Error getting stats: $e');
-      return null;
-    }
-  }
-
-  Future<bool> updateStats(Map<String, dynamic> data) async {
-    try {
-      final existing = await getStats();
-      if (existing != null) {
-        await _supabase.from('stats').update(data).eq('id', existing['id']);
-      } else {
-        await _supabase.from('stats').insert(data);
-      }
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'İstatistikler güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> deletePublication(String id) =>
+      _runMutation(() => _cv.deletePublication(id), 'Yayın silinemedi');
 
   // ============================================================
   // EXPERTISE AREAS
@@ -666,153 +377,25 @@ class DataService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getExpertiseAreas() async {
     try {
-      final response = await _supabase
-          .from('expertise_areas')
-          .select()
-          .order('order_index');
-      return List<Map<String, dynamic>>.from(response as List);
+      return await _expertise.getAll();
     } catch (e) {
-      debugPrint('Error getting expertise areas: $e');
+      _notifyReadFailure('getExpertiseAreas', e);
       return [];
     }
   }
 
-  Future<bool> createExpertiseArea(Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('expertise_areas').insert(data);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Uzmanlık alanı eklenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> createExpertiseArea(Map<String, dynamic> data) =>
+      _runMutation(() => _expertise.create(data), 'Uzmanlık alanı eklenemedi');
 
-  Future<bool> updateExpertiseArea(String id, Map<String, dynamic> data) async {
-    try {
-      await _supabase.from('expertise_areas').update(data).eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Uzmanlık alanı güncellenemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+  Future<bool> updateExpertiseArea(String id, Map<String, dynamic> data) =>
+      _runMutation(() => _expertise.update(id, data), 'Uzmanlık alanı güncellenemedi');
 
-  Future<bool> deleteExpertiseArea(String id) async {
-    try {
-      await _supabase.from('expertise_areas').delete().eq('id', id);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Uzmanlık alanı silinemedi: $e';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  /// Her uzmanlık alanı için deneyim yılını hesaplar.
-  ///
-  /// Hesap öncelik sırası:
-  /// 1. `linked_work_exp_ids` doluysa: bağlı iş deneyimlerinin (start→end) aralıklarından toplam ay hesaplanır
-  /// 2. Aksi halde: expertise_area'nın kendi start_date → end_date (null = bugün) aralığı kullanılır
-  /// 3. `parent_ids` doluysa: parent alanların en erken start_date'i baz alınır
-  int _calculateYears(
-    Map<String, dynamic> area,
-    List<Map<String, dynamic>> allAreas, {
-    List<Map<String, dynamic>> workExps = const [],
-  }) {
-    final now = DateTime.now();
-
-    // 1. İş deneyimlerinden toplam ay hesapla
-    final linkedWeIds =
-        (area['linked_work_exp_ids'] as List?)?.cast<String>() ?? [];
-    if (linkedWeIds.isNotEmpty && workExps.isNotEmpty) {
-      final linkedExps =
-          workExps.where((w) => linkedWeIds.contains(w['id'])).toList();
-      final totalMonths = _sumDateRangeMonths(linkedExps, now);
-      if (totalMonths > 0) return (totalMonths / 12).round().clamp(1, 99);
-    }
-
-    // 2. Expertise area kendi tarih aralığı
-    final startDate = DateTime.tryParse(area['start_date'] ?? '');
-    if (startDate != null) {
-      final endDate = DateTime.tryParse(area['end_date'] ?? '') ?? now;
-      final months = _monthsBetween(startDate, endDate);
-      if (months > 0) return (months / 12).round().clamp(1, 99);
-    }
-
-    // 3. Parent alanları varsa en erken tarihi kullan
-    final parentIds = (area['parent_ids'] as List?)?.cast<String>() ?? [];
-    if (parentIds.isNotEmpty) {
-      final parents =
-          allAreas.where((a) => parentIds.contains(a['id'])).toList();
-      DateTime? earliest;
-      for (final p in parents) {
-        final d = DateTime.tryParse(p['start_date'] ?? '');
-        if (d != null && (earliest == null || d.isBefore(earliest))) {
-          earliest = d;
-        }
-      }
-      if (earliest != null) {
-        final months = _monthsBetween(earliest, now);
-        return (months / 12).round().clamp(1, 99);
-      }
-    }
-
-    return 0;
-  }
-
-  /// Ay sayısı hesaplayıcı
-  int _monthsBetween(DateTime start, DateTime end) {
-    final months = (end.year - start.year) * 12 + (end.month - start.month);
-    return months.clamp(0, 999);
-  }
-
-  /// Birden fazla iş deneyimi aralığını birleştirip toplam ay sayısını döndürür.
-  /// Örtüşen aralıklar tek sayılır.
-  int _sumDateRangeMonths(
-      List<Map<String, dynamic>> exps, DateTime now) {
-    final ranges = <(DateTime, DateTime)>[];
-    for (final exp in exps) {
-      final start = DateTime.tryParse(exp['start_date'] ?? '');
-      if (start == null) continue;
-      final end = DateTime.tryParse(exp['end_date'] ?? '') ?? now;
-      ranges.add((start, end));
-    }
-    if (ranges.isEmpty) return 0;
-
-    // Başlangıca göre sırala
-    ranges.sort((a, b) => a.$1.compareTo(b.$1));
-
-    int totalMonths = 0;
-    DateTime? mergedStart;
-    DateTime? mergedEnd;
-
-    for (final r in ranges) {
-      if (mergedStart == null) {
-        mergedStart = r.$1;
-        mergedEnd = r.$2;
-      } else if (r.$1.isBefore(mergedEnd!) || r.$1 == mergedEnd) {
-        // Örtüşme: mevcut aralığı genişlet
-        if (r.$2.isAfter(mergedEnd)) mergedEnd = r.$2;
-      } else {
-        totalMonths += _monthsBetween(mergedStart, mergedEnd);
-        mergedStart = r.$1;
-        mergedEnd = r.$2;
-      }
-    }
-    if (mergedStart != null && mergedEnd != null) {
-      totalMonths += _monthsBetween(mergedStart, mergedEnd);
-    }
-    return totalMonths;
-  }
+  Future<bool> deleteExpertiseArea(String id) =>
+      _runMutation(() => _expertise.delete(id), 'Uzmanlık alanı silinemedi');
 
   /// Hero bölümü için otomatik hesaplanan istatistikler döndürür.
   ///
-  /// Dönüş: { 'project_count': int, 'expertise_areas': [{name, color, years}] }
+  /// Dönüş: `{ 'project_count': int, 'expertise_areas': [{name, color, years}] }`
   Future<Map<String, dynamic>> getAutoStats() async {
     try {
       final results = await Future.wait([
@@ -830,7 +413,7 @@ class DataService extends ChangeNotifier {
           'id': area['id'],
           'name': area['name'],
           'color': area['color'] ?? '#58A6FF',
-          'years': _calculateYears(area, areas, workExps: workExps),
+          'years': _expertise.calculateYears(area, areas, workExps: workExps),
           'order_index': area['order_index'] ?? 0,
         };
       }).toList();
@@ -840,7 +423,7 @@ class DataService extends ChangeNotifier {
         'expertise_areas': expertiseWithYears,
       };
     } catch (e) {
-      debugPrint('Error getting auto stats: $e');
+      _notifyReadFailure('getAutoStats', e);
       return {
         'project_count': 0,
         'expertise_areas': <Map<String, dynamic>>[],
@@ -849,33 +432,69 @@ class DataService extends ChangeNotifier {
   }
 
   // ============================================================
+  // CONTACT MESSAGES
+  // ============================================================
+
+  Future<bool> sendContactMessage({
+    required String name,
+    required String email,
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      await _contact.sendMessage(
+        name: name,
+        email: email,
+        subject: subject,
+        message: message,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = kDebugMode
+          ? 'Mesaj gönderilemedi: $e'
+          : 'Mesaj gönderilemedi. Lütfen tekrar deneyin.';
+      notifyListeners();
+      debugPrint('Error sending contact message: $e');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getContactMessages() async {
+    try {
+      return await _contact.getAll();
+    } catch (e) {
+      _notifyReadFailure('getContactMessages', e);
+      return [];
+    }
+  }
+
+  Future<bool> markMessageAsRead(String id) async {
+    try {
+      await _contact.markAsRead(id);
+      return true;
+    } catch (e) {
+      _errorMessage = 'Mesaj güncellenemedi: $e';
+      notifyListeners();
+      debugPrint('Error marking message as read: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteContactMessage(String id) async {
+    try {
+      await _contact.delete(id);
+      return true;
+    } catch (e) {
+      _errorMessage = 'Mesaj silinemedi: $e';
+      notifyListeners();
+      debugPrint('Error deleting contact message: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
   // DASHBOARD STATS
   // ============================================================
 
-  Future<Map<String, int>> getDashboardStats() async {
-    try {
-      final projects = await _supabase.from('projects').select('id');
-      final skills = await _supabase.from('skills').select('id');
-      final education = await _supabase.from('education').select('id');
-      final certificates = await _supabase.from('certificates').select('id');
-      final workExperience = await _supabase.from('work_experience').select('id');
-      
-      return {
-        'projects': (projects as List).length,
-        'skills': (skills as List).length,
-        'education': (education as List).length,
-        'certificates': (certificates as List).length,
-        'workExperience': (workExperience as List).length,
-      };
-    } catch (e) {
-      debugPrint('Error getting dashboard stats: $e');
-      return {
-        'projects': 0,
-        'skills': 0,
-        'education': 0,
-        'certificates': 0,
-        'workExperience': 0,
-      };
-    }
-  }
+  Future<Map<String, int>> getDashboardStats() => _contact.getDashboardStats();
 }

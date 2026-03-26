@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../services/data_service.dart';
+import '../../utils/form_validators.dart';
 
 /// CV bilgileri yönetimi ekranı.
 /// 
@@ -115,6 +116,7 @@ class _EducationTabState extends State<_EducationTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final degreeC = TextEditingController(text: item?['degree'] ?? '');
     final fieldC = TextEditingController(text: item?['field'] ?? '');
     final instC = TextEditingController(text: item?['institution'] ?? '');
@@ -127,26 +129,45 @@ class _EducationTabState extends State<_EducationTab> {
         backgroundColor: AppTheme.surface,
         title: Text(isEdit ? 'Eğitim Düzenle' : 'Yeni Eğitim'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: degreeC, decoration: const InputDecoration(labelText: 'Derece (Lisans, Y. Lisans...)')),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              TextFormField(
+                controller: degreeC,
+                decoration: const InputDecoration(labelText: 'Derece (Lisans, Y. Lisans...)'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: fieldC, decoration: const InputDecoration(labelText: 'Bölüm')),
+              TextFormField(
+                controller: fieldC,
+                decoration: const InputDecoration(labelText: 'Bölüm'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: instC, decoration: const InputDecoration(labelText: 'Kurum')),
+              TextFormField(
+                controller: instC,
+                decoration: const InputDecoration(labelText: 'Kurum'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: periodC, decoration: const InputDecoration(labelText: 'Dönem (2018-2022)')),
+              TextFormField(
+                controller: periodC,
+                decoration: const InputDecoration(labelText: 'Dönem (2018-2022)'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: gpaC, decoration: const InputDecoration(labelText: 'GPA (opsiyonel)')),
+              TextFormField(controller: gpaC, decoration: const InputDecoration(labelText: 'GPA (opsiyonel)')),
             ],
+            ),
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
-              if (degreeC.text.isEmpty || fieldC.text.isEmpty) return;
+              if (!formKey.currentState!.validate()) return;
               final data = {
                 'degree': degreeC.text.trim(),
                 'field': fieldC.text.trim(),
@@ -221,6 +242,7 @@ class _CertificatesTabState extends State<_CertificatesTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final nameC = TextEditingController(text: item?['name'] ?? '');
     final issuerC = TextEditingController(text: item?['issuer'] ?? '');
     final urlC = TextEditingController(text: item?['credential_url'] ?? '');
@@ -233,12 +255,22 @@ class _CertificatesTabState extends State<_CertificatesTab> {
           backgroundColor: AppTheme.surface,
           title: Text(isEdit ? 'Sertifika Düzenle' : 'Yeni Sertifika'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Sertifika Adı')),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                TextFormField(
+                  controller: nameC,
+                  decoration: const InputDecoration(labelText: 'Sertifika Adı'),
+                  validator: (v) => FormValidators.requiredTrim(v),
+                ),
                 const SizedBox(height: Spacing.md),
-                TextField(controller: issuerC, decoration: const InputDecoration(labelText: 'Veren Kurum')),
+                TextFormField(
+                  controller: issuerC,
+                  decoration: const InputDecoration(labelText: 'Veren Kurum'),
+                  validator: (v) => FormValidators.requiredTrim(v),
+                ),
                 const SizedBox(height: Spacing.md),
                 ListTile(
                   title: const Text('Tarih'),
@@ -249,15 +281,21 @@ class _CertificatesTabState extends State<_CertificatesTab> {
                     if (picked != null) setDialogState(() => date = picked);
                   },
                 ),
-                TextField(controller: urlC, decoration: const InputDecoration(labelText: 'Doğrulama URL (opsiyonel)')),
+                TextFormField(
+                  controller: urlC,
+                  decoration: const InputDecoration(labelText: 'Doğrulama URL (opsiyonel)'),
+                  keyboardType: TextInputType.url,
+                  validator: FormValidators.optionalUrl,
+                ),
               ],
+              ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
             ElevatedButton(
               onPressed: () async {
-                if (nameC.text.isEmpty || issuerC.text.isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
                 final data = {
                   'name': nameC.text.trim(),
                   'issuer': issuerC.text.trim(),
@@ -327,6 +365,7 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final titleC = TextEditingController(text: item?['title'] ?? '');
     final companyC = TextEditingController(text: item?['company'] ?? '');
     final periodC = TextEditingController(text: item?['period'] ?? '');
@@ -349,22 +388,26 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
           title: Text(isEdit ? 'Deneyim Düzenle' : 'Yeni Deneyim'),
           content: SizedBox(
             width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                  TextFormField(
                       controller: titleC,
                       decoration:
-                          const InputDecoration(labelText: 'Pozisyon *')),
+                          const InputDecoration(labelText: 'Pozisyon *'),
+                      validator: (v) => FormValidators.requiredTrim(v)),
                   const SizedBox(height: Spacing.md),
-                  TextField(
+                  TextFormField(
                       controller: companyC,
                       decoration:
-                          const InputDecoration(labelText: 'Şirket *')),
+                          const InputDecoration(labelText: 'Şirket *'),
+                      validator: (v) => FormValidators.requiredTrim(v)),
                   const SizedBox(height: Spacing.md),
-                  TextField(
+                  TextFormField(
                       controller: locC,
                       decoration: const InputDecoration(labelText: 'Konum')),
                   const SizedBox(height: Spacing.lg),
@@ -456,12 +499,13 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
                     ),
                   ),
                   const SizedBox(height: Spacing.md),
-                  TextField(
+                  TextFormField(
                       controller: descC,
                       decoration:
                           const InputDecoration(labelText: 'Açıklama'),
                       maxLines: 3),
                 ],
+                ),
               ),
             ),
           ),
@@ -471,7 +515,13 @@ class _WorkExperienceTabState extends State<_WorkExperienceTab> {
                 child: const Text('İptal')),
             ElevatedButton(
               onPressed: () async {
-                if (titleC.text.isEmpty || companyC.text.isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
+                if (startDate == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Başlangıç tarihi seçin')),
+                  );
+                  return;
+                }
 
                 // Otomatik period metni oluştur (boşsa)
                 String periodText = periodC.text.trim();
@@ -632,6 +682,7 @@ class _LanguagesTabState extends State<_LanguagesTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final langC = TextEditingController(text: item?['language'] ?? '');
     final levelC = TextEditingController(text: item?['level'] ?? '');
     int prof = item?['proficiency_percent'] ?? 50;
@@ -642,12 +693,22 @@ class _LanguagesTabState extends State<_LanguagesTab> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppTheme.surface,
           title: Text(isEdit ? 'Dil Düzenle' : 'Yeni Dil'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: langC, decoration: const InputDecoration(labelText: 'Dil')),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              TextFormField(
+                controller: langC,
+                decoration: const InputDecoration(labelText: 'Dil'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: levelC, decoration: const InputDecoration(labelText: 'Seviye (A1-C2)')),
+              TextFormField(
+                controller: levelC,
+                decoration: const InputDecoration(labelText: 'Seviye (A1-C2)'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.lg),
               Row(children: [const Text('Yeterlilik: '), Text('$prof%', style: TextStyle(color: AppTheme.accent))]),
               Slider(
@@ -656,12 +717,13 @@ class _LanguagesTabState extends State<_LanguagesTab> {
                 onChanged: (v) => setDialogState(() => prof = v.round()),
               ),
             ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
             ElevatedButton(
               onPressed: () async {
-                if (langC.text.isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
                 final data = {'language': langC.text.trim(), 'level': levelC.text.trim(), 'proficiency_percent': prof};
                 final ds = context.read<DataService>();
                 final success = isEdit ? await ds.updateLanguage(item['id'], data) : await ds.createLanguage(data);
@@ -726,6 +788,7 @@ class _AchievementsTabState extends State<_AchievementsTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final titleC = TextEditingController(text: item?['title'] ?? '');
     final descC = TextEditingController(text: item?['description'] ?? '');
     final orgC = TextEditingController(text: item?['organization'] ?? '');
@@ -736,22 +799,29 @@ class _AchievementsTabState extends State<_AchievementsTab> {
         backgroundColor: AppTheme.surface,
         title: Text(isEdit ? 'Başarı Düzenle' : 'Yeni Başarı'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Başlık')),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              TextFormField(
+                controller: titleC,
+                decoration: const InputDecoration(labelText: 'Başlık'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: descC, decoration: const InputDecoration(labelText: 'Açıklama'), maxLines: 3),
+              TextFormField(controller: descC, decoration: const InputDecoration(labelText: 'Açıklama'), maxLines: 3),
               const SizedBox(height: Spacing.md),
-              TextField(controller: orgC, decoration: const InputDecoration(labelText: 'Organizasyon')),
+              TextFormField(controller: orgC, decoration: const InputDecoration(labelText: 'Organizasyon')),
             ],
+            ),
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
-              if (titleC.text.isEmpty) return;
+              if (!formKey.currentState!.validate()) return;
               final data = {
                 'title': titleC.text.trim(),
                 'description': descC.text.trim(),
@@ -825,6 +895,7 @@ class _ReferencesTabState extends State<_ReferencesTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final nameC = TextEditingController(text: item?['name'] ?? '');
     final titleC = TextEditingController(text: item?['title'] ?? '');
     final companyC = TextEditingController(text: item?['company'] ?? '');
@@ -838,28 +909,48 @@ class _ReferencesTabState extends State<_ReferencesTab> {
         backgroundColor: AppTheme.surface,
         title: Text(isEdit ? 'Referans Düzenle' : 'Yeni Referans'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Ad Soyad *')),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              TextFormField(
+                controller: nameC,
+                decoration: const InputDecoration(labelText: 'Ad Soyad *'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Ünvan *')),
+              TextFormField(
+                controller: titleC,
+                decoration: const InputDecoration(labelText: 'Ünvan *'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: companyC, decoration: const InputDecoration(labelText: 'Şirket *')),
+              TextFormField(
+                controller: companyC,
+                decoration: const InputDecoration(labelText: 'Şirket *'),
+                validator: (v) => FormValidators.requiredTrim(v),
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: emailC, decoration: const InputDecoration(labelText: 'Email (opsiyonel)')),
+              TextFormField(
+                controller: emailC,
+                decoration: const InputDecoration(labelText: 'Email (opsiyonel)'),
+                keyboardType: TextInputType.emailAddress,
+                validator: FormValidators.optionalEmail,
+              ),
               const SizedBox(height: Spacing.md),
-              TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Telefon (opsiyonel)')),
+              TextFormField(controller: phoneC, decoration: const InputDecoration(labelText: 'Telefon (opsiyonel)')),
               const SizedBox(height: Spacing.md),
-              TextField(controller: relationC, decoration: const InputDecoration(labelText: 'İlişki (örn: Eski Yönetici)')),
+              TextFormField(controller: relationC, decoration: const InputDecoration(labelText: 'İlişki (örn: Eski Yönetici)')),
             ],
+            ),
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
-              if (nameC.text.isEmpty || titleC.text.isEmpty || companyC.text.isEmpty) return;
+              if (!formKey.currentState!.validate()) return;
               final data = {
                 'name': nameC.text.trim(),
                 'title': titleC.text.trim(),
@@ -870,7 +961,7 @@ class _ReferencesTabState extends State<_ReferencesTab> {
               };
               final ds = context.read<DataService>();
               final success = isEdit
-                  ? await ds.updateReference(item!['id'], data)
+                  ? await ds.updateReference(item['id'] as String, data)
                   : await ds.createReference(data);
               if (success && mounted) {
                 Navigator.pop(context);
@@ -944,6 +1035,7 @@ class _PublicationsTabState extends State<_PublicationsTab> {
 
   Future<void> _showDialog([Map<String, dynamic>? item]) async {
     final isEdit = item != null;
+    final formKey = GlobalKey<FormState>();
     final titleC = TextEditingController(text: item?['title'] ?? '');
     final venueC = TextEditingController(text: item?['venue'] ?? '');
     final urlC = TextEditingController(text: item?['url'] ?? '');
@@ -964,12 +1056,22 @@ class _PublicationsTabState extends State<_PublicationsTab> {
           backgroundColor: AppTheme.surface,
           title: Text(isEdit ? 'Yayın Düzenle' : 'Yeni Yayın'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titleC, decoration: const InputDecoration(labelText: 'Başlık *')),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                TextFormField(
+                  controller: titleC,
+                  decoration: const InputDecoration(labelText: 'Başlık *'),
+                  validator: (v) => FormValidators.requiredTrim(v),
+                ),
                 const SizedBox(height: Spacing.md),
-                TextField(controller: venueC, decoration: const InputDecoration(labelText: 'Yayın yeri (Dergi, Konferans) *')),
+                TextFormField(
+                  controller: venueC,
+                  decoration: const InputDecoration(labelText: 'Yayın yeri (Dergi, Konferans) *'),
+                  validator: (v) => FormValidators.requiredTrim(v),
+                ),
                 const SizedBox(height: Spacing.md),
                 ListTile(
                   title: const Text('Tarih'),
@@ -985,7 +1087,12 @@ class _PublicationsTabState extends State<_PublicationsTab> {
                     if (picked != null) setDialogState(() => date = picked);
                   },
                 ),
-                TextField(controller: urlC, decoration: const InputDecoration(labelText: 'URL (opsiyonel)')),
+                TextFormField(
+                  controller: urlC,
+                  decoration: const InputDecoration(labelText: 'URL (opsiyonel)'),
+                  keyboardType: TextInputType.url,
+                  validator: FormValidators.optionalUrl,
+                ),
                 const SizedBox(height: Spacing.md),
                 TextField(
                   controller: coAuthorsC,
@@ -998,13 +1105,14 @@ class _PublicationsTabState extends State<_PublicationsTab> {
                   maxLines: 3,
                 ),
               ],
+              ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
             ElevatedButton(
               onPressed: () async {
-                if (titleC.text.isEmpty || venueC.text.isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
                 final coAuthorsStr = coAuthorsC.text.trim();
                 final coAuthors = coAuthorsStr.isEmpty
                     ? null
@@ -1019,7 +1127,7 @@ class _PublicationsTabState extends State<_PublicationsTab> {
                 };
                 final ds = context.read<DataService>();
                 final success = isEdit
-                    ? await ds.updatePublication(item!['id'], data)
+                    ? await ds.updatePublication(item['id'] as String, data)
                     : await ds.createPublication(data);
                 if (success && mounted) {
                   Navigator.pop(context);

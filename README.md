@@ -24,12 +24,16 @@ Bu portföy sitesi, mühendislik projelerini **problem → yaklaşım → uygula
 ### Özellikler
 
 - **Proje Odaklı**: 5 bölümlü detaylı dokümantasyon şablonu
-- **Dinamik CV**: Eğitim, sertifika, deneyim, dil ve daha fazlası
+- **Dinamik CV**: Eğitim, sertifika, deneyim, dil, yayın, referans ve daha fazlası
 - **Responsive**: Mobil, tablet ve masaüstü uyumlu
 - **Minimal Tasarım**: GitHub-benzeri koyu tema
 - **Admin Paneli**: Supabase entegreli tam yönetim arayüzü
 - **Gerçek Zamanlı**: Tüm veriler Supabase'den dinamik olarak çekilir
 - **Korumalı Erişim**: Authentication ile güvenli admin paneli
+- **İletişim Formu**: Mesajlar Supabase'e kaydedilir, admin panelinden yönetilir
+- **CV PDF**: Admin'den link girilir, profil sayfasında indirme butonu gösterilir
+- **Müsaitlik Durumu**: Admin panelinden dinamik yönetilebilir
+- **SEO Hazır**: Open Graph ve Twitter Card meta tagları
 - **Akıllı Görünürlük**: Boş CV bölümleri otomatik gizlenir
 
 ---
@@ -69,8 +73,8 @@ Bu portföy sitesi, mühendislik projelerini **problem → yaklaşım → uygula
 │  - work_experience│    │                  │     │                  │
 │  - languages     │     │                  │     │                  │
 │  - achievements  │     │                  │     │                  │
-│  - publications  │     │                  │     │                  │
-│  - stats         │     │                  │     │                  │
+│  - publications  │     │  - getAutoStats()│     │                  │
+│  - contact_msgs  │     │  (dinamik hesap) │     │                  │
 └──────────────────┘     └──────────────────┘     └──────────────────┘
 ```
 
@@ -83,10 +87,11 @@ lib/
 ├── main.dart                      # Uygulama giriş noktası + Provider'lar
 │
 ├── config/                        # YAPILANDIRMA
+│   ├── env.dart                   #    SUPABASE_URL / ANON_KEY (dart-define)
 │   ├── theme.dart                 #    Renk paleti, tipografi, widget temaları
 │   └── routes.dart                #    Sayfa yönlendirmeleri (go_router)
 │
-├── services/                      # SERVİSLER (YENİ)
+├── services/                      # SERVİSLER
 │   ├── auth_service.dart          #    Supabase authentication
 │   └── data_service.dart          #    Supabase CRUD işlemleri
 │
@@ -94,29 +99,30 @@ lib/
 │   ├── project.dart               #    Project, Skill sınıfları ve enum'lar
 │   └── cv_models.dart             #    CV modelleri (Education, Certificate, vb.)
 │
-├── data/                          # STATIK VERİ (fallback)
-│   ├── projects_data.dart         #    Proje ve beceri verileri
-│   └── cv_data.dart               #    CV verileri
-│
 ├── utils/                         # YARDIMCI ARAÇLAR
-│   └── responsive.dart            #    Ekran boyutu yardımcıları
+│   ├── responsive.dart            #    Ekran boyutu yardımcıları
+│   ├── open_url.dart              #    URL ve mailto açma yardımcısı
+│   └── form_validators.dart       #    E-posta / URL doğrulama (paylaşılan)
 │
 ├── screens/                       # SAYFALAR
 │   ├── home_screen.dart           #    Ana sayfa (CV bölümleri dahil)
 │   ├── projects_screen.dart       #    Proje listesi
 │   ├── project_detail_screen.dart #    Proje detayı
 │   ├── about_screen.dart          #    Hakkımda
+│   ├── profile_screen.dart        #    Profil / CV özeti
 │   ├── contact_screen.dart        #    İletişim
 │   ├── login_screen.dart          #    Admin giriş sayfası
 │   │
-│   └── admin/                     #    ADMIN PANELİ (YENİ)
-│       ├── admin_shell.dart       #    Admin layout (sidebar + content)
-│       ├── dashboard_screen.dart  #    Özet istatistikler
-│       ├── projects_admin.dart    #    Proje listesi + CRUD
-│       ├── project_edit_screen.dart#   Proje ekleme/düzenleme formu
-│       ├── skills_admin.dart      #    Beceri yönetimi
-│       ├── cv_admin.dart          #    CV bölümleri yönetimi (tab yapısı)
-│       └── settings_admin.dart    #    Kişisel bilgiler
+│   └── admin/                     #    ADMIN PANELİ
+│       ├── admin_shell.dart               #    Admin layout (sidebar + content)
+│       ├── dashboard_screen.dart          #    Özet istatistikler
+│       ├── projects_admin.dart            #    Proje listesi + CRUD
+│       ├── project_edit_screen.dart       #    Proje ekleme/düzenleme formu
+│       ├── skills_admin.dart              #    Beceri yönetimi
+│       ├── expertise_areas_admin.dart     #    Uzmanlık alanları CRUD
+│       ├── cv_admin.dart                  #    CV bölümleri yönetimi (tab yapısı)
+│       ├── contact_messages_admin.dart    #    İletişim mesajları
+│       └── settings_admin.dart           #    Kişisel bilgiler + müsaitlik + CV PDF
 │
 └── widgets/                       # YENİDEN KULLANILABİLİR BİLEŞENLER
     ├── common/                    #    Ortak bileşenler
@@ -126,9 +132,10 @@ lib/
     │   └── section_title.dart     #    Bölüm başlığı
     │
     ├── home/                      #    Ana sayfa bileşenleri
-    │   ├── hero_section.dart      #    Tanıtım alanı (Supabase'den veri)
-    │   ├── featured_projects.dart #    Öne çıkan projeler (Supabase'den veri)
-    │   └── skills_section.dart    #    Beceri alanları (Supabase'den veri)
+    │   ├── hero_section.dart      #    Tanıtım + istatistikler (Supabase)
+    │   ├── featured_projects.dart #    Öne çıkan projeler
+    │   ├── skills_section.dart    #    Beceri alanları
+    │   └── hero_*.dart            #    hero alt bileşenleri (greeting, bio, cta, …)
     │
     ├── projects/                  #    Proje bileşenleri
     │   ├── project_card.dart      #    Proje kartı
@@ -165,7 +172,8 @@ lib/
 | `project_edit_screen.dart` | `ProjectEditScreen` | Proje ekleme/düzenleme formu |
 | `skills_admin.dart` | `SkillsAdminScreen` | Beceri yönetimi |
 | `cv_admin.dart` | `CVAdminScreen` | CV yönetimi (tab yapısında) |
-| `settings_admin.dart` | `SettingsAdminScreen` | Kişisel bilgiler düzenleme |
+| `contact_messages_admin.dart` | `ContactMessagesAdminScreen` | İletişim mesajları görüntüleme/silme |
+| `settings_admin.dart` | `SettingsAdminScreen` | Kişisel bilgiler, müsaitlik durumu, CV PDF linki |
 
 ---
 
@@ -192,15 +200,16 @@ lib/
   └─────────────┘
   
   
-  ┌─────────────┐                    ┌─────────────────────────────────┐
-  │   Giriş     │  ────────────────▶ │         Admin Paneli            │
-  │  (/login)   │    (auth sonrası)  │                                 │
-  └─────────────┘                    │  /admin          - Dashboard    │
-        ▲                            │  /admin/projects - Projeler     │
-        │                            │  /admin/skills   - Beceriler    │
-  Footer'da 7x                       │  /admin/cv       - CV Bilgileri │
-  hızlı tıklama                      │  /admin/settings - Ayarlar      │
-                                     └─────────────────────────────────┘
+  ┌─────────────┐                    ┌─────────────────────────────────────┐
+  │   Giriş     │  ────────────────▶ │           Admin Paneli              │
+  │  (/login)   │    (auth sonrası)  │                                     │
+  └─────────────┘                    │  /admin            - Dashboard      │
+        ▲                            │  /admin/projects   - Projeler       │
+        │                            │  /admin/skills     - Beceriler      │
+  Footer'da 7x                       │  /admin/cv         - CV Bilgileri   │
+  hızlı tıklama                      │  /admin/messages   - Mesajlar       │
+                                     │  /admin/settings   - Ayarlar        │
+                                     └─────────────────────────────────────┘
 ```
 
 ---
@@ -247,29 +256,39 @@ flutter build web --release
 
 Projede bulunan `supabase_schema.sql` dosyasını Supabase Dashboard > SQL Editor'da çalıştırın:
 
-```sql
--- Tüm tablolar ve RLS politikaları otomatik oluşturulacak:
--- personal_info, projects, skills, education, certificates, 
--- work_experience, languages, achievements, publications, stats
-```
+`supabase_schema.sql` şunları da içerir: `expertise_areas`, `user_references`, iletişim formu için `contact_messages`, `personal_info` tek satır indeksi ve tüm RLS politikaları. İstatistikler (proje sayısı, uzmanlık alanı yılları) artık ayrı bir tablo yerine `getAutoStats()` ile canlı veriden hesaplanmaktadır.
+
+**RLS tek admin:** Yazma ve `contact_messages` yönetimi politikaları `auth.uid()` ile tek kullanıcıya kısıtlıdır. SQL’i çalıştırmadan önce dosyada `00000000-0000-4000-8000-000000000001` ifadesini **tümüyle** kendi admin kullanıcınızın UUID’si ile değiştirin (Dashboard > Authentication > Users > kullanıcı satırı > User UID). Aksi halde giriş yapsanız bile veri yazılamaz. Üretimde public kayıt (signup) kapalı tutmanız önerilir.
 
 ### 3. Authentication Kullanıcısı Oluşturma
 
 Supabase Dashboard > Authentication > Users:
 1. "Add user" > "Create new user"
 2. Email ve şifre belirleyin
-3. Bu bilgilerle `/login` sayfasından giriş yapabilirsiniz
+3. Oluşan kullanıcının **User UID** değerini yukarıdaki RLS adımında şemaya yansıtın
+4. Bu bilgilerle `/login` sayfasından giriş yapabilirsiniz
 
 ### 4. Flutter Projesini Yapılandırma
 
-`lib/main.dart` dosyasında:
+Proje Supabase anahtarlarını ortam değişkenlerinden okur:
 
-```dart
-await Supabase.initialize(
-  url: 'YOUR_SUPABASE_URL',
-  anonKey: 'YOUR_ANON_KEY',
-);
+1. `config.json.example` dosyasını `config.json` olarak kopyalayın
+2. `config.json` içine Supabase URL ve anon key değerlerinizi girin:
+
+```json
+{
+  "SUPABASE_URL": "https://xxxx.supabase.co",
+  "SUPABASE_ANON_KEY": "eyJhb..."
+}
 ```
+
+3. Uygulamayı çalıştırın:
+
+```bash
+flutter run --dart-define-from-file=config.json
+```
+
+VS Code kullanıyorsanız `.vscode/launch.json` zaten bu yapılandırmayı içeriyor.
 
 ---
 
@@ -306,12 +325,20 @@ Tab yapısında:
 - İş deneyimi
 - Diller
 - Başarılar
+- Yayınlar
+- Referanslar
+
+#### Mesajlar (`/admin/messages`)
+- Ziyaretçilerden gelen iletişim formu mesajları
+- Okundu/okunmadı takibi
+- Mesaj silme
 
 #### Ayarlar (`/admin/settings`)
 - Kişisel bilgiler (isim, ünvan, bio)
 - İletişim bilgileri
-- Sosyal medya linkleri
-- İstatistikler (proje sayısı, yıl deneyim)
+- Sosyal medya linkleri (GitHub, LinkedIn, Twitter, web sitesi)
+- Müsaitlik durumu ve metni (iletişim sayfasında gösterilir)
+- CV PDF linki (profil sayfasında indirme butonu)
 
 ---
 

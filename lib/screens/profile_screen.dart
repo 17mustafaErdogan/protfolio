@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/cv_models.dart';
 import '../services/data_service.dart';
+import '../utils/open_url.dart';
 import '../utils/responsive.dart';
 import '../widgets/common/section_title.dart';
 import '../widgets/cv/education_section.dart';
@@ -91,12 +92,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SectionTitle(
-                  title: 'Profil',
-                  subtitle: 'Eğitim, deneyim ve yetkinliklerim',
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Expanded(
+                      child: SectionTitle(
+                        title: 'Profil',
+                        subtitle: 'Eğitim, deneyim ve yetkinliklerim',
+                      ),
+                    ),
+                    if (_personalInfo?['cv_pdf_url'] != null)
+                      OutlinedButton.icon(
+                        onPressed: () => tryLaunchUrlString(
+                          _personalInfo!['cv_pdf_url'] as String,
+                          context: context,
+                        ),
+                        icon: const Icon(Icons.download_outlined, size: 18),
+                        label: const Text('CV İndir'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.accent,
+                          side: const BorderSide(color: AppTheme.accent),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Spacing.lg,
+                            vertical: Spacing.sm,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: Spacing.xxl),
-                
+
                 // Kişisel bilgi header'ı
                 if (_personalInfo != null)
                   RepaintBoundary(child: _buildProfileHeader(isDesktop)),

@@ -1,7 +1,7 @@
 /// Proje kategorilerini tanımlayan enum.
-/// 
-/// Her proje bu üç kategoriden birine ait olmalıdır.
-/// Kategoriler, projelerin filtrelenmesi ve görsel ayrımı için kullanılır.
+///
+/// Supabase tarafında asıl ayrım [expertise_area_id] ve isteğe bağlı `category`
+/// metin alanı ile yapılır; bu enum örnek/statik veri ile uyumluluk için kullanılabilir.
 enum ProjectCategory {
   /// Elektronik projeleri: PCB tasarımı, devre, sensör, IoT vb.
   electronics,

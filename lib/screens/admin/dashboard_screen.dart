@@ -22,10 +22,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStats();
+    // Provider/context ilk frame'de garanti: initState içinde read yerine
+    // post-frame yükleme, nadiren boş istatistik görünmesini önler.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStats());
   }
 
   Future<void> _loadStats() async {
+    if (!mounted) return;
     final dataService = context.read<DataService>();
     final stats = await dataService.getDashboardStats();
     

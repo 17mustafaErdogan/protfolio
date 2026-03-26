@@ -70,6 +70,8 @@ class _ExpertiseAreasAdminScreenState
     Set<String> selectedParentIds =
         ((existing?['parent_ids'] as List?)?.cast<String>() ?? []).toSet();
 
+    final formKey = GlobalKey<FormState>();
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -78,18 +80,23 @@ class _ExpertiseAreasAdminScreenState
           title: Text(isEdit ? 'Alanı Düzenle' : 'Yeni Uzmanlık Alanı'),
           content: SizedBox(
             width: 480,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   // Alan adı
-                  TextField(
+                  TextFormField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Alan Adı *',
                       hintText: 'Mobil Geliştirme',
                     ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Alan adı gerekli'
+                        : null,
                   ),
                   const SizedBox(height: Spacing.lg),
 
@@ -287,6 +294,7 @@ class _ExpertiseAreasAdminScreenState
                     }),
                   ],
                 ],
+                ),
               ),
             ),
           ),
@@ -297,7 +305,7 @@ class _ExpertiseAreasAdminScreenState
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
                 final data = {
                   'name': nameCtrl.text.trim(),
                   'color': selectedColor,

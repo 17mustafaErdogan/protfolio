@@ -6,6 +6,7 @@ import '../../services/data_service.dart';
 import '../../utils/open_url.dart';
 import '../../utils/responsive.dart';
 
+
 /// Sayfa altında bulunan footer bileşeni.
 /// 
 /// İçerik:
@@ -30,6 +31,8 @@ class _FooterState extends State<Footer> {
   String _githubUrl = 'https://github.com';
   String _linkedinUrl = 'https://www.linkedin.com';
   String _emailUrl = 'mailto:contact@example.com';
+  String? _twitterUrl;
+  String? _websiteUrl;
 
   @override
   void initState() {
@@ -40,20 +43,29 @@ class _FooterState extends State<Footer> {
   Future<void> _loadLinks() async {
     if (!mounted) return;
     final ds = context.read<DataService>();
-    final p = await ds.getPersonalInfo();
+    final personalInfo = await ds.getPersonalInfo();
     if (!mounted) return;
     setState(() {
-      final gh = p?['github_url']?.toString().trim();
+      final gh = personalInfo?['github_url']?.toString().trim();
       if (gh != null && gh.isNotEmpty) {
         _githubUrl = gh.contains('://') ? gh : 'https://$gh';
       }
-      final li = p?['linkedin_url']?.toString().trim();
+      final li = personalInfo?['linkedin_url']?.toString().trim();
       if (li != null && li.isNotEmpty) {
         _linkedinUrl = li.contains('://') ? li : 'https://$li';
       }
-      final em = p?['email']?.toString().trim();
+      final em = personalInfo?['email']?.toString().trim();
       if (em != null && em.isNotEmpty) {
-        _emailUrl = em.toLowerCase().startsWith('mailto:') ? em : 'mailto:$em';
+        _emailUrl =
+            em.toLowerCase().startsWith('mailto:') ? em : 'mailto:$em';
+      }
+          final tw = personalInfo?['twitter_url']?.toString().trim();
+          if (tw != null && tw.isNotEmpty) {
+        _twitterUrl = tw.contains('://') ? tw : 'https://$tw';
+      }
+      final ws = personalInfo?['website_url']?.toString().trim();
+      if (ws != null && ws.isNotEmpty) {
+        _websiteUrl = ws.contains('://') ? ws : 'https://$ws';
       }
     });
   }
@@ -61,7 +73,7 @@ class _FooterState extends State<Footer> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
         border: Border(
           top: BorderSide(
@@ -78,26 +90,38 @@ class _FooterState extends State<Footer> {
         child: Column(
           children: [
             // Sosyal medya linkleri
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: Spacing.lg,
+              runSpacing: Spacing.sm,
               children: [
                 _SocialLink(
                   icon: Icons.code,
                   label: 'GitHub',
                   url: _githubUrl,
                 ),
-                const SizedBox(width: Spacing.lg),
                 _SocialLink(
                   icon: Icons.work_outline,
                   label: 'LinkedIn',
                   url: _linkedinUrl,
                 ),
-                const SizedBox(width: Spacing.lg),
                 _SocialLink(
                   icon: Icons.mail_outline,
                   label: 'Email',
                   url: _emailUrl,
                 ),
+                if (_twitterUrl != null)
+                  _SocialLink(
+                    icon: Icons.alternate_email,
+                    label: 'Twitter',
+                    url: _twitterUrl!,
+                  ),
+                if (_websiteUrl != null)
+                  _SocialLink(
+                    icon: Icons.language,
+                    label: 'Web',
+                    url: _websiteUrl!,
+                  ),
               ],
             ),
             const SizedBox(height: Spacing.lg),

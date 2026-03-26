@@ -6,7 +6,7 @@ Bu dosya, portföy projesinin genel geliştirme planını, işlerin nasıl ilerl
 
 ## Genel Bakış
 
-Flutter tabanlı portföy uygulaması; Supabase backend, admin paneli ve public sayfalar içerir. Bu plan, eksik özelliklerin, güvenlik iyileştirmelerinin ve kalite artırımlarının öncelik sırasına göre uygulanmasını hedefler.
+Flutter tabanlı portföy uygulaması; Supabase backend, admin paneli ve public sayfalar içerir.
 
 ---
 
@@ -16,25 +16,37 @@ Flutter tabanlı portföy uygulaması; Supabase backend, admin paneli ve public 
 |----------|-----|---------|-------|
 | Güvenlik | Supabase keys → env | Yüksek | ✅ Tamamlandı |
 | Auth | Router refreshListenable → AuthService | Yüksek | ✅ Tamamlandı |
-| Referanslar | Model fromMap, DataService CRUD, CVAdmin tab, ProfileScreen | Orta | ✅ Tamamlandı |
+| Referanslar | Model, DataService CRUD, CVAdmin tab, ProfileScreen | Orta | ✅ Tamamlandı |
 | Yayınlar | CVAdmin Publications tab | Orta | ✅ Tamamlandı |
-| İletişim | personal_info entegrasyonu, form backend | Orta | ⏳ Bekliyor |
-| UX | url_launcher (sertifika, yayın linkleri) | Düşük | ⏳ Bekliyor |
-| DB | personal_info/stats unique/upsert | Düşük | ⏳ Bekliyor |
-| Test | Smoke test | Düşük | ⏳ Bekliyor |
+| İletişim | personal_info entegrasyonu, form backend | Orta | ✅ Tamamlandı |
+| İletişim | Admin mesaj kutusu (contact_messages tablosu) | Orta | ✅ Tamamlandı |
+| Müsaitlik | personal_info'dan dinamik, admin toggle | Orta | ✅ Tamamlandı |
+| Email validasyonu | İletişim formu email format kontrolü | Orta | ✅ Tamamlandı |
+| Sosyal linkler | Twitter/X ve website footer/contact'ta gösterim | Düşük | ✅ Tamamlandı |
+| 404 Sayfası | GoRouter errorBuilder | Düşük | ✅ Tamamlandı |
+| CV PDF | Admin'den link, profil sayfasında indirme butonu | Düşük | ✅ Tamamlandı |
+| SEO | index.html Open Graph + Twitter Card; canlıda `YOUR_DOMAIN` tam URL | Düşük | ✅ Tamamlandı |
+| Kod kalitesi | url_launch_utils.dart → open_url.dart ile birleştirildi | Düşük | ✅ Tamamlandı |
+| Kod kalitesi | Ölü veri dosyaları (projects_data, cv_data) kaldırıldı | Düşük | ✅ Tamamlandı |
+| DB | personal_info tek satır (unique ifade indeksi) | Düşük | ✅ Tamamlandı (`supabase_schema.sql`) |
+| DB | `stats` tablosu kaldırıldı; istatistikler `getAutoStats()` ile dinamik | Düşük | ✅ Tamamlandı |
+| Test | Rota sabitleri + MaterialApp smoke | Düşük | ✅ Tamamlandı |
+| Güvenlik | RLS yazma + mesaj yönetimi `auth.uid()` ile tek admin | Yüksek | ✅ Tamamlandı (`supabase_schema.sql`; UUID değiştirme zorunlu) |
+| UX | `DataService` okuma hatalarında `_errorMessage`; `sendContactMessage` hata metni | Orta | ✅ Tamamlandı |
+| Form | Ayarlar opsiyonel e-posta; CV/Beceri/Uzmanlık admin diyalogları `Form` + validate | Orta | ✅ Tamamlandı |
+| Dokümantasyon | `.env.example` — dart-define / config.json (flutter_dotenv yok) | Düşük | ✅ Tamamlandı |
 
 ---
 
-## Uygulama Sırası Önerisi
+## Veritabanı (tek kaynak)
 
-1. **Kritik:** Supabase anahtarlarını ortam değişkenine taşı ✅
-2. **Kritik:** Router auth listenable'ı AuthService ile bağla
-3. **Özellik:** Referanslar CRUD + CVAdmin sekmesi + ProfileScreen
-4. **Özellik:** CVAdmin Yayınlar sekmesi
-5. **Özellik:** İletişim sayfası – personal_info entegrasyonu + form backend
-6. **İyileştirme:** url_launcher entegrasyonu
-7. **İyileştirme:** personal_info/stats schema düzeltmesi
-8. **İyileştirme:** Widget test güncellemesi
+Tüm tablolar, `contact_messages`, `personal_info` genişletmeleri ve RLS politikaları için **[`supabase_schema.sql`](../supabase_schema.sql)** dosyasını Supabase SQL Editor'da çalıştırın. Ayrı migration parçalarını bu dosyadan kopyalamayın; güncel tanım buradadır.
+
+> **Not:** `stats` tablosu kaldırıldı. İstatistikler artık dinamik hesaplanmaktadır: proje sayısı ve uzmanlık alanı bilgileri `getAutoStats()`, dashboard sayıları ise `getDashboardStats()` ile gerçek tablo satırları üzerinden elde edilir.
+
+> **RLS:** Admin INSERT/UPDATE/DELETE ve `contact_messages` okuma/güncelleme/silme, şemada belirtilen tek `auth.users` UUID’sine bağlıdır. Scripti çalıştırmadan önce dosyada `00000000-0000-4000-8000-000000000001` değerini kendi admin kullanıcı UID’nizle değiştirin (Supabase Authentication > Users).
+
+**Üretim SEO:** [`web/index.html`](../web/index.html) içinde `YOUR_DOMAIN` yerine canlı site kök URL’nizi yazın.
 
 ---
 
@@ -59,82 +71,68 @@ Flutter tabanlı portföy uygulaması; Supabase backend, admin paneli ve public 
 
 ---
 
-## Bekleyen İşler (Detaylı)
+### 2. Router Auth Listenable – AuthService Bağlantısı ✅
 
-### 2. Router Auth Listenable – AuthService Bağlantısı
-
-**Sorun:** `routes.dart` içinde `refreshListenable` AuthService ile bağlı değil; login/logout sonrası yönlendirme gecikmeli olabilir.
-
-**Çözüm:** GoRouter'a AuthService'in auth state değişimlerini dinleyen bir listenable ver.
+`routes.dart` içinde `GoRouter(refreshListenable: authService)` ile AuthService login/logout akışı router'a bağlı.
 
 ---
 
-### 3. Referanslar (User References) – Tam Entegrasyon
+### 3–4. Referanslar ve Yayınlar ✅
 
-- `Reference.fromMap` eklenmeli
-- DataService'e `getReferences`, `createReference`, `updateReference`, `deleteReference` eklenmeli
-- CVAdmin'e "Referanslar" sekmesi eklenmeli
-- ProfileScreen'e `ReferencesSection` entegre edilmeli
+Model `fromMap`, DataService CRUD, CVAdmin sekmeleri ve ProfileScreen entegrasyonları tamamlandı.
 
 ---
 
-### 4. CVAdmin Yayınlar Sekmesi
+### 5. İletişim Sayfası Tam Entegrasyon ✅
 
-- CVAdmin'de 6. tab olarak "Yayınlar" sekmesi eklenmeli
-- DataService metotları zaten mevcut
-
----
-
-### 5. İletişim Sayfası
-
-- İletişim bilgileri `personal_info`'dan okunmalı (hardcoded değerler kaldırılmalı)
-- Mesaj formu: Supabase tablosu veya e-posta ile backend entegrasyonu
+- İletişim bilgileri (email, GitHub, LinkedIn, Twitter, website) `personal_info`'dan dinamik yükleniyor
+- Müsaitlik durumu ve metni admin panelinden yönetilebilir
+- Mesaj formu Supabase `contact_messages` tablosuna kaydediyor
+- Admin panelinde `/admin/messages` rotasında mesajlar görüntülenebilir, okunabilir, silinebilir
+- Email alanı regex ile validate ediliyor
 
 ---
 
-### 6. url_launcher
+### 6. CV PDF İndirme ✅
 
-- Sertifika ve yayın kartlarında URL varsa tıklanabilir link olarak `launchUrl` kullanılmalı
-
----
-
-### 7. Veritabanı Schema Düzeltmeleri
-
-- `personal_info` ve `stats` için tek satır garanti eden bir yapı (UPSERT/unique constraint)
+Admin → Ayarlar → "İletişim Sayfası" bölümünden CV PDF linki (Google Drive, Dropbox vb.) girilir. Profil sayfasında "CV İndir" butonu görünür.
 
 ---
 
-### 8. Test
+### 7. SEO Meta Tagları ✅
 
-- `widget_test.dart` portföy uygulamasına uygun smoke test ile güncellenmeli
+`web/index.html` güncellendi: Open Graph (Facebook, LinkedIn, WhatsApp) ve Twitter Card meta tagları eklendi.
+
+---
+
+## Bekleyen İşler
+
+### İleride (isteğe bağlı)
+
+- Entegrasyon testi (gerçek `PortfolioApp` + Supabase mock)
+- `DataService` birim testleri (fake Postgrest istemcisi)
 
 ---
 
 ## Mimari Özeti
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Flutter Frontend                       │
-│  ShellScaffold → HomeScreen, ProfileScreen, ContactScreen │
-│  AdminShell → Dashboard, Projects, CV, Skills, Settings  │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────┐
-│  AuthService (Supabase Auth)  │  DataService (Supabase DB) │
-└─────────────────────────┬─────────────────────────────────┘
-                          │
-┌─────────────────────────▼─────────────────────────────────┐
-│                    Supabase (Backend)                      │
-│  PostgreSQL + Row Level Security + Auth                   │
-└───────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       Flutter Frontend                           │
+│  ShellScaffold → Home, Projects, About, Profile, Contact        │
+│  AdminShell → Dashboard, Projects, CV, Skills, Mesajlar, Ayarlar│
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────┐
+│  AuthService (Supabase Auth)  │  DataService (Supabase DB)      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────┐
+│                    Supabase (Backend)                            │
+│  PostgreSQL + Row Level Security + Auth                         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Kaynak Plan Dosyası
-
-Detaylı plan Cursor Plans içinde saklanır. Bu doküman planın özeti ve durum takibidir.
-
----
-
-*Son güncelleme: 2025-03-16*
+*Son güncelleme: 2026-03-26*

@@ -8,7 +8,7 @@ import 'footer.dart';
  *
  * SingleChildScrollView + Column yapısı geçiş sırasında overflow ve önceki ekranın
  * üst üste binme hatalarını önlemek için CustomScrollView yerine kullanılır.
- */
+ ****************************************************/
 class ShellScaffold extends StatelessWidget {
   final Widget child;
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../config/theme.dart';
+
 import '../screens/home_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/project_detail_screen.dart';
@@ -17,6 +19,7 @@ import '../screens/admin/skills_admin.dart';
 import '../screens/admin/cv_admin.dart';
 import '../screens/admin/settings_admin.dart';
 import '../screens/admin/expertise_areas_admin.dart';
+import '../screens/admin/contact_messages_admin.dart';
 import '../services/auth_service.dart';
 import '../widgets/common/shell_scaffold.dart';
 
@@ -41,7 +44,8 @@ class AppRoutes {
   static const String adminExpertiseAreas = '/admin/expertise-areas';
   static const String adminCV = '/admin/cv';
   static const String adminSettings = '/admin/settings';
-  
+  static const String adminMessages = '/admin/messages';
+
   static String projectDetailPath(String id) => '/projects/$id';
   static String adminProjectEditPath(String id) => '/admin/projects/$id/edit';
 }
@@ -238,8 +242,74 @@ GoRouter createRouter(AuthService authService) {
             transitionsBuilder: _fadeTransition,
           ),
         ),
+        GoRoute(
+          path: AppRoutes.adminMessages,
+          name: 'admin-messages',
+          redirect: _adminRedirect,
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const ContactMessagesAdminScreen(),
+            transitionsBuilder: _fadeTransition,
+          ),
+        ),
       ],
     ),
   ],
+  errorBuilder: (context, state) => const _NotFoundScreen(),
   );
+}
+
+/// 404 - Sayfa bulunamadı ekranı.
+class _NotFoundScreen extends StatelessWidget {
+  const _NotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '404',
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    color: AppTheme.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sayfa Bulunamadı',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Aradığınız sayfa mevcut değil veya taşınmış olabilir.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textMuted,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.home_outlined, size: 18),
+              label: const Text('Ana Sayfaya Dön'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                foregroundColor: AppTheme.background,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

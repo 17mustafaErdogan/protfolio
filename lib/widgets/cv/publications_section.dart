@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/cv_models.dart';
-import '../../utils/responsive.dart';
+import '../../utils/open_url.dart';
 import '../common/section_title.dart';
 
 /// Yayınları ve makaleleri gösteren section widget'ı.
@@ -144,9 +144,10 @@ class _PublicationItem extends StatelessWidget {
                 if (hasUrl) ...[
                   const SizedBox(height: Spacing.sm),
                   TextButton.icon(
-                    onPressed: () {
-                      // TODO: URL açma işlemi (url_launcher paketi gerekli)
-                    },
+                    onPressed: () => tryLaunchUrlString(
+                      publication.url,
+                      context: context,
+                    ),
                     icon: const Icon(Icons.open_in_new, size: 14),
                     label: const Text('Yayını Görüntüle'),
                     style: TextButton.styleFrom(

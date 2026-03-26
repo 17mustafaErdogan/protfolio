@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../services/data_service.dart';
+import '../../utils/form_validators.dart';
 
 /// Ayarlar / Kişisel bilgiler düzenleme ekranı.
 class SettingsAdminScreen extends StatefulWidget {
@@ -36,11 +37,13 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
   final _approachController = TextEditingController();
   final _whyMeController = TextEditingController();
   
-  // Stats
-  final _projectCountController = TextEditingController();
-  final _yearsExpController = TextEditingController();
-  final _expertiseController = TextEditingController();
-  
+  // Müsaitlik durumu
+  bool _availabilityStatus = true;
+  final _availabilityTextController = TextEditingController();
+
+  // CV PDF linki
+  final _cvPdfUrlController = TextEditingController();
+
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -68,9 +71,8 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
     _visionController.dispose();
     _approachController.dispose();
     _whyMeController.dispose();
-    _projectCountController.dispose();
-    _yearsExpController.dispose();
-    _expertiseController.dispose();
+    _availabilityTextController.dispose();
+    _cvPdfUrlController.dispose();
     super.dispose();
   }
 
@@ -78,8 +80,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
     final dataService = context.read<DataService>();
     
     final personalInfo = await dataService.getPersonalInfo();
-    final stats = await dataService.getStats();
-    
+
     if (mounted) {
       setState(() {
         if (personalInfo != null) {
@@ -93,9 +94,14 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
           _linkedinController.text = personalInfo['linkedin_url'] ?? '';
           _twitterController.text = personalInfo['twitter_url'] ?? '';
           _websiteController.text = personalInfo['website_url'] ?? '';
-          
+
           _militaryStatusController.text = personalInfo['military_status'] ?? '';
           _driverLicenseController.text = personalInfo['driver_license'] ?? '';
+
+          _availabilityStatus = personalInfo['availability_status'] ?? true;
+          _availabilityTextController.text =
+              personalInfo['availability_text'] ?? 'Yeni projelere açığım';
+          _cvPdfUrlController.text = personalInfo['cv_pdf_url'] ?? '';
 
           // Hakkımda içerikleri
           _storyController.text = personalInfo['story'] ?? '';
@@ -103,13 +109,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
           _approachController.text = personalInfo['approach'] ?? '';
           _whyMeController.text = personalInfo['why_me'] ?? '';
         }
-        
-        if (stats != null) {
-          _projectCountController.text = stats['project_count'] ?? '0';
-          _yearsExpController.text = stats['years_experience'] ?? '0';
-          _expertiseController.text = stats['expertise_areas'] ?? '3';
-        }
-        
+
         _isLoading = false;
       });
     }
@@ -136,24 +136,23 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
       'website_url': _websiteController.text.trim().isEmpty ? null : _websiteController.text.trim(),
       'military_status': _militaryStatusController.text.trim().isEmpty ? null : _militaryStatusController.text.trim(),
       'driver_license': _driverLicenseController.text.trim().isEmpty ? null : _driverLicenseController.text.trim(),
+      'availability_status': _availabilityStatus,
+      'availability_text': _availabilityTextController.text.trim().isEmpty
+          ? 'Yeni projelere açığım'
+          : _availabilityTextController.text.trim(),
+      'cv_pdf_url': _cvPdfUrlController.text.trim().isEmpty ? null : _cvPdfUrlController.text.trim(),
       // Hakkımda içerikleri
       'story': _storyController.text.trim().isEmpty ? null : _storyController.text.trim(),
       'vision': _visionController.text.trim().isEmpty ? null : _visionController.text.trim(),
       'approach': _approachController.text.trim().isEmpty ? null : _approachController.text.trim(),
       'why_me': _whyMeController.text.trim().isEmpty ? null : _whyMeController.text.trim(),
     });
-    
-    // Stats
-    final statsSuccess = await dataService.updateStats({
-      'project_count': _projectCountController.text.trim(),
-      'years_experience': _yearsExpController.text.trim(),
-      'expertise_areas': _expertiseController.text.trim(),
-    });
-    
+
     if (mounted) {
       setState(() => _isSaving = false);
-      
-      if (personalSuccess && statsSuccess) {
+
+      // Ana sayfa istatistikleri getAutoStats ile dinamik; stats tablosu güncellenmez.
+      if (personalSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ayarlar kaydedildi'),
@@ -274,6 +273,8 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
                 controller: _emailController,
                 label: 'E-posta',
                 hint: 'email@example.com',
+                keyboardType: TextInputType.emailAddress,
+                optionalEmail: true,
               ),
               const SizedBox(height: Spacing.lg),
               _buildTextField(
@@ -313,52 +314,56 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
             ]),
             
             const SizedBox(height: Spacing.xxl),
-            
-            // İstatistikler
-            _buildSection('İstatistikler (Ana Sayfada Gösterilir)', [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < Breakpoints.desktop;
-                  final fieldWidth = isNarrow
-                      ? constraints.maxWidth
-                      : (constraints.maxWidth - (Spacing.lg * 2)) / 3;
 
-                  return Wrap(
-                    spacing: Spacing.lg,
-                    runSpacing: Spacing.lg,
-                    children: [
-                      SizedBox(
-                        width: fieldWidth,
-                        child: _buildTextField(
-                          controller: _projectCountController,
-                          label: 'Proje Sayısı',
-                          hint: '15+',
+            // Müsaitlik Durumu
+            _buildSection('İletişim Sayfası', [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Müsaitlik Durumu',
+                          style:
+                              Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
                         ),
-                      ),
-                      SizedBox(
-                        width: fieldWidth,
-                        child: _buildTextField(
-                          controller: _yearsExpController,
-                          label: 'Yıl Deneyim',
-                          hint: '5+',
+                        const SizedBox(height: Spacing.xs),
+                        Text(
+                          'İletişim sayfasında gösterilecek müsaitlik durumu',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textMuted,
+                                  ),
                         ),
-                      ),
-                      SizedBox(
-                        width: fieldWidth,
-                        child: _buildTextField(
-                          controller: _expertiseController,
-                          label: 'Uzmanlık Alanı',
-                          hint: '3',
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _availabilityStatus,
+                    onChanged: (v) => setState(() => _availabilityStatus = v),
+                    activeColor: AppTheme.accentGreen,
+                  ),
+                ],
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildTextField(
+                controller: _availabilityTextController,
+                label: 'Müsaitlik Metni',
+                hint: 'Yeni projelere açığım',
+              ),
+              const SizedBox(height: Spacing.lg),
+              _buildTextField(
+                controller: _cvPdfUrlController,
+                label: 'CV PDF Linki',
+                hint: 'https://drive.google.com/...',
               ),
             ]),
-            
+
             const SizedBox(height: Spacing.xxl),
-            
+
             // Kaydet butonu
             Align(
               alignment: Alignment.centerRight,
@@ -539,6 +544,8 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
     String? hint,
     int maxLines = 1,
     bool required = false,
+    bool optionalEmail = false,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,6 +560,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
         TextFormField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           style: const TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
@@ -572,9 +580,15 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
               borderSide: const BorderSide(color: AppTheme.accent, width: 2),
             ),
           ),
-          validator: required
-              ? (value) => value?.isEmpty == true ? 'Bu alan zorunludur' : null
-              : null,
+          validator: (value) {
+            if (required && (value == null || value.trim().isEmpty)) {
+              return 'Bu alan zorunludur';
+            }
+            if (optionalEmail) {
+              return FormValidators.optionalEmail(value);
+            }
+            return null;
+          },
         ),
       ],
     );

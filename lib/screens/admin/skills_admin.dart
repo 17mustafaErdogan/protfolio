@@ -40,6 +40,7 @@ class _SkillsAdminScreenState extends State<SkillsAdminScreen> {
 
   Future<void> _showSkillDialog([Map<String, dynamic>? skill]) async {
     final isEdit = skill != null;
+    final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: skill?['name'] ?? '');
     final descController =
         TextEditingController(text: skill?['description'] ?? '');
@@ -57,18 +58,24 @@ class _SkillsAdminScreenState extends State<SkillsAdminScreen> {
           title: Text(isEdit ? 'Beceri Düzenle' : 'Yeni Beceri'),
           content: SizedBox(
             width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                TextFormField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Beceri Adı',
                     hintText: 'PCB Tasarımı',
                   ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Beceri adı gerekli'
+                      : null,
                 ),
                 const SizedBox(height: Spacing.md),
-                TextField(
+                TextFormField(
                   controller: descController,
                   decoration: const InputDecoration(
                     labelText: 'Açıklama',
@@ -120,7 +127,9 @@ class _SkillsAdminScreenState extends State<SkillsAdminScreen> {
                   onChanged: (v) =>
                       setDs(() => proficiency = v.round()),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
           actions: [
@@ -130,7 +139,7 @@ class _SkillsAdminScreenState extends State<SkillsAdminScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isEmpty) return;
+                if (!formKey.currentState!.validate()) return;
                 final data = {
                   'name': nameController.text.trim(),
                   'description': descController.text.trim(),

@@ -15,6 +15,32 @@ List<String> _asStringList(dynamic value) {
   return const [];
 }
 
+String _asString(dynamic value) {
+  if (value == null) return '';
+  if (value is String) return value;
+  return value.toString();
+}
+
+String? _asNullableString(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value.isEmpty ? null : value;
+  final s = value.toString().trim();
+  return s.isEmpty ? null : s;
+}
+
+int? _asNullableInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+List<String>? _asNullableStringList(dynamic value) {
+  if (value == null) return null;
+  final list = _asStringList(value);
+  return list.isEmpty ? null : list;
+}
+
 /// Eğitim bilgisini temsil eden veri modeli.
 /// 
 /// Üniversite, lise veya diğer eğitim kurumlarındaki
@@ -38,25 +64,25 @@ class Education {
   /// Genel not ortalaması (opsiyonel)
   final String? gpa;
 
-  const Education({
-    required this.degree,
-    required this.field,
-    required this.institution,
-    required this.period,
-    this.description,
-    this.gpa,
-  });
+    const Education({
+      required this.degree,
+      required this.field,
+      required this.institution,
+      required this.period,
+      this.description,
+      this.gpa,
+    });
 
-  factory Education.fromMap(Map<String, dynamic> map) {
-    return Education(
-      degree: map['degree'] ?? '',
-      field: map['field'] ?? '',
-      institution: map['institution'] ?? '',
-      period: map['period'] ?? '',
-      description: map['description'],
-      gpa: map['gpa'],
-    );
-  }
+    factory Education.fromMap(Map<String, dynamic> map) {
+      return Education(
+        degree: _asString(map['degree']),
+        field: _asString(map['field']),
+        institution: _asString(map['institution']),
+        period: _asString(map['period']),
+        description: _asNullableString(map['description']),
+        gpa: _asNullableString(map['gpa']),
+      );
+    }
 }
 
 /// Sertifika veya kurs bilgisini temsil eden veri modeli.
@@ -89,11 +115,11 @@ class Certificate {
 
   factory Certificate.fromMap(Map<String, dynamic> map) {
     return Certificate(
-      name: map['name'] ?? '',
-      issuer: map['issuer'] ?? '',
+      name: _asString(map['name']),
+      issuer: _asString(map['issuer']),
       date: _parseDate(map['date']),
-      credentialUrl: map['credential_url'],
-      credentialId: map['credential_id'],
+      credentialUrl: _asNullableString(map['credential_url']),
+      credentialId: _asNullableString(map['credential_id']),
     );
   }
 }
@@ -119,9 +145,9 @@ class LanguageSkill {
 
   factory LanguageSkill.fromMap(Map<String, dynamic> map) {
     return LanguageSkill(
-      language: map['language'] ?? '',
-      level: map['level'] ?? '',
-      proficiencyPercent: map['proficiency_percent'],
+      language: _asString(map['language']),
+      level: _asString(map['level']),
+      proficiencyPercent: _asNullableInt(map['proficiency_percent']),
     );
   }
 }
@@ -152,10 +178,10 @@ class Achievement {
 
   factory Achievement.fromMap(Map<String, dynamic> map) {
     return Achievement(
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
+      title: _asString(map['title']),
+      description: _asString(map['description']),
       date: map['date'] == null ? null : _parseDate(map['date']),
-      organization: map['organization'],
+      organization: _asNullableString(map['organization']),
     );
   }
 }
@@ -194,12 +220,12 @@ class Publication {
 
   factory Publication.fromMap(Map<String, dynamic> map) {
     return Publication(
-      title: map['title'] ?? '',
-      venue: map['venue'] ?? '',
+      title: _asString(map['title']),
+      venue: _asString(map['venue']),
       date: _parseDate(map['date']),
-      url: map['url'],
-      coAuthors: _asStringList(map['co_authors']),
-      abstract: map['abstract'],
+      url: _asNullableString(map['url']),
+      coAuthors: _asNullableStringList(map['co_authors']),
+      abstract: _asNullableString(map['abstract']),
     );
   }
 }
@@ -238,12 +264,12 @@ class Reference {
 
   factory Reference.fromMap(Map<String, dynamic> map) {
     return Reference(
-      name: map['name'] ?? '',
-      title: map['title'] ?? '',
-      company: map['company'] ?? '',
-      email: map['email'],
-      phone: map['phone'],
-      relationship: map['relationship'],
+      name: _asString(map['name']),
+      title: _asString(map['title']),
+      company: _asString(map['company']),
+      email: _asNullableString(map['email']),
+      phone: _asNullableString(map['phone']),
+      relationship: _asNullableString(map['relationship']),
     );
   }
 }
@@ -294,14 +320,14 @@ class WorkExperience {
 
   factory WorkExperience.fromMap(Map<String, dynamic> map) {
     return WorkExperience(
-      title: map['title'] ?? '',
-      company: map['company'] ?? '',
-      period: map['period'] ?? '',
-      description: map['description'],
+      title: _asString(map['title']),
+      company: _asString(map['company']),
+      period: _asString(map['period']),
+      description: _asNullableString(map['description']),
       highlights: _asStringList(map['highlights']),
-      logoUrl: map['logo_url'],
-      location: map['location'],
-      employmentType: map['employment_type'],
+      logoUrl: _asNullableString(map['logo_url']),
+      location: _asNullableString(map['location']),
+      employmentType: _asNullableString(map['employment_type']),
     );
   }
 }

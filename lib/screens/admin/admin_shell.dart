@@ -128,7 +128,13 @@ class _AdminSidebar extends StatelessWidget {
                   path: '/admin/settings',
                   isSelected: currentPath == '/admin/settings',
                 ),
-                
+                _NavItem(
+                  icon: Icons.mail_outline,
+                  label: 'Mesajlar',
+                  path: '/admin/messages',
+                  isSelected: currentPath == '/admin/messages',
+                ),
+
                 const Divider(height: Spacing.xl),
                 
                 // Siteye git

@@ -35,6 +35,7 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
   bool _isOngoing = true;
   bool _isLoading = false;
   bool _isEditMode = false;
+  bool _projectMissing = false;
   List<Map<String, dynamic>> _expertiseAreas = [];
 
   @override
@@ -73,6 +74,7 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
         await context.read<DataService>().getProject(widget.projectId!);
     if (project != null && mounted) {
       setState(() {
+        _projectMissing = false;
         _titleController.text = project['title'] ?? '';
         _subtitleController.text = project['subtitle'] ?? '';
         _problemController.text = project['problem'] ?? '';
@@ -102,8 +104,11 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
         }
         _isLoading = false;
       });
-    } else {
-      setState(() => _isLoading = false);
+    } else if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _projectMissing = _isEditMode;
+      });
     }
   }
 
@@ -169,6 +174,39 @@ class _ProjectEditScreenState extends State<ProjectEditScreen> {
   Widget build(BuildContext context) {
     if (_isLoading && _isEditMode) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_isEditMode && _projectMissing) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(Spacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: AppTheme.textMuted),
+              const SizedBox(height: Spacing.lg),
+              Text(
+                'Proje bulunamadı',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: Spacing.sm),
+              Text(
+                'Bu ID ile eşleşen bir proje yok veya erişim reddedildi.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textMuted,
+                    ),
+              ),
+              const SizedBox(height: Spacing.xl),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/admin/projects'),
+                icon: const Icon(Icons.arrow_back, size: 18),
+                label: const Text('Projelere dön'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return SingleChildScrollView(
